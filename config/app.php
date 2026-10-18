@@ -58,16 +58,19 @@ return [
     |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------
-    |
+        |
     | Here you may specify the default timezone for your application, which
-    | will be used by the PHP date and date-time functions. The timezone
-    | is set to "UTC" by default as it is suitable for most use cases.
+    | will be used by the PHP date and date-time functions.
+    |
+    | Proyek ini: Asia/Jakarta (WIB), supaya jam tiket & perhitungan SLA
+    | sama dengan jam di kampus.
     |
     */
 
-    'timezone' => 'UTC',
+    'timezone' => env('APP_TIMEZONE', 'Asia/Jakarta'),
 
     /*
+
     |--------------------------------------------------------------------------
     | Application Locale Configuration
     |--------------------------------------------------------------------------
@@ -76,15 +79,17 @@ return [
     | by Laravel's translation / localization methods. This option can be
     | set to any locale for which you plan to have translation strings.
     |
-    */
+        */
 
-    'locale' => env('APP_LOCALE', 'en'),
+    // 'id' = Bahasa Indonesia: pesan validasi dari lang/id/*.php, tanggal Carbon ("3 jam yang lalu").
+    'locale' => env('APP_LOCALE', 'id'),
 
     'fallback_locale' => env('APP_FALLBACK_LOCALE', 'en'),
 
-    'faker_locale' => env('APP_FAKER_LOCALE', 'en_US'),
+    'faker_locale' => env('APP_FAKER_LOCALE', 'id_ID'),
 
     /*
+
     |--------------------------------------------------------------------------
     | Encryption Key
     |--------------------------------------------------------------------------

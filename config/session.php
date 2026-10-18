@@ -30,11 +30,13 @@ return [
     | to expire immediately when the browser is closed then you may
     | indicate that via the expire_on_close configuration option.
     |
-    */
+        */
 
-    'lifetime' => (int) env('SESSION_LIFETIME', 120),
+    // 10080 menit = 7 hari (PRD F-AUTH-05: auto-logout setelah 7 hari tidak aktif).
+    'lifetime' => (int) env('SESSION_LIFETIME', 10080),
 
     'expire_on_close' => env('SESSION_EXPIRE_ON_CLOSE', false),
+
 
     /*
     |--------------------------------------------------------------------------
