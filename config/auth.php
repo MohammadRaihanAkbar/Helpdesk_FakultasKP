@@ -41,6 +41,9 @@ return [
         'web' => [
             'driver' => 'session',
             'provider' => 'users',
+            // Durasi cookie "Ingat sesi saya" dalam MENIT: 10080 = 7 hari (PRD US-01).
+            // Tanpa baris ini Laravel memakai default 5 tahun.
+            'remember' => (int) env('AUTH_REMEMBER_MINUTES', 10080),
         ],
     ],
 
@@ -112,6 +115,19 @@ return [
     |
     */
 
-    'password_timeout' => env('AUTH_PASSWORD_TIMEOUT', 10800),
+        'password_timeout' => env('AUTH_PASSWORD_TIMEOUT', 10800),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Kunci Hidden Link Registrasi Alumni (US-01B)
+    |--------------------------------------------------------------------------
+    |
+    | Jika diisi, /register/alumni hanya bisa dibuka dengan ?key=<kunci ini>
+    | (selain itu 404). Kosongkan untuk membuka halaman tanpa kunci.
+    | Dibaca oleh App\Http\Middleware\EnsureAlumniRegistrationKey.
+    |
+    */
+
+    'alumni_registration_key' => env('ALUMNI_REGISTRATION_KEY'),
 
 ];
