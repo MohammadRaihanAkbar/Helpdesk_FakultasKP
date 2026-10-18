@@ -30,7 +30,11 @@
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>
         <env name="PULSE_ENABLED" value="false"/>
-        <env name="TELESCOPE_ENABLED" value="false"/>
+                <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
+        <!-- Test tidak boleh menghubungi SSO kampus & tidak memakai kunci hidden link dari .env -->
+        <env name="SSO_DRIVER" value="fake"/>
+        <env name="ALUMNI_REGISTRATION_KEY" value=""/>
     </php>
 </phpunit>
+
