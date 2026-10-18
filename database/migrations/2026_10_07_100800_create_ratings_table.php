@@ -22,8 +22,16 @@ return new class extends Migration
             $table->timestamp('created_at')->useCurrent();
         });
 
-        // Lapisan pengaman di database: skor hanya boleh 1 sampai 5
-        DB::statement('ALTER TABLE ratings ADD CONSTRAINT ratings_score_check CHECK (score BETWEEN 1 AND 5)');
+        // Lapisan pengaman di database: skor hanya boleh 1 sampai 5.
+        //
+        // Dilewati di SQLite: SQLite tidak mendukung "ALTER TABLE ... ADD CONSTRAINT"
+        // (CHECK hanya bisa ditulis saat CREATE TABLE), sehingga baris ini membuat
+        // migration gagal saat test (phpunit.xml memakai SQLite in-memory).
+        // Di MySQL/MariaDB (Laragon & server) constraint tetap dibuat. Aturan 1-5 juga
+        // divalidasi di aplikasi (form rating, M2), jadi test tetap menjaga aturannya.
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement('ALTER TABLE ratings ADD CONSTRAINT ratings_score_check CHECK (score BETWEEN 1 AND 5)');
+        }
     }
 
     public function down(): void
