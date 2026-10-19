@@ -47,7 +47,7 @@ class DatabaseSeederTest extends TestCase
         $this->assertSame(6, User::where('role', Role::Staff)->count());
         $this->assertSame(1, User::where('role', Role::Staff)->where('is_active', false)->count());
         $this->assertSame(4, User::where('role', Role::EndUser)->count());
-        $this->assertSame(8, Ticket::count());
+        $this->assertSame(12, Ticket::count());
         $this->assertSame(5, Rating::first()->score);
     }
 
@@ -56,8 +56,12 @@ class DatabaseSeederTest extends TestCase
         $staffAkademik = User::where('email', 'staff.akademik.fitk@uinssc.test')->first();
         $staffAlumni = User::where('email', 'staff.alumni.fitk@uinssc.test')->first();
 
-        // Tiket demo "KRS belum di-ACC" (menunggu) masuk antrean staff akademik, bukan staff alumni.
-        $this->assertSame(['KRS saya belum di-ACC Dosen PA'], Ticket::forStaff($staffAkademik)->where('status', TicketStatus::Menunggu)->pluck('title')->all());
+        // Tiket demo menunggu di kelompok Sistem Akademik & Jadwal Mengajar masuk antrean staff akademik (tertua dulu),
+        // bukan antrean staff alumni.
+        $this->assertSame(
+            ['Nilai Bahasa Arab belum keluar', 'Jadwal mengajar Kamis bentrok dengan rapat prodi', 'KRS saya belum di-ACC Dosen PA'],
+            Ticket::forStaff($staffAkademik)->where('status', TicketStatus::Menunggu)->orderBy('created_at')->pluck('title')->all()
+        );
         $this->assertSame(2, Ticket::forStaff($staffAlumni)->count()); // transkrip + PDDIKTI
     }
 
@@ -96,6 +100,19 @@ class DatabaseSeederTest extends TestCase
             $this->assertSame('TKT-'.$ticket->created_at->format('Ym'), substr($ticket->ticket_number, 0, 10), "{$label}: bulan nomor");
             $this->assertSame($ticket->status->isOpen(), $ticket->resolved_at === null, "{$label}: resolved_at");
 
+            // Alur PRD 4.5: hanya tiket Menunggu yang belum punya penangan.
+            $waiting = $ticket->status === TicketStatus::Menunggu;
+            $this->assertSame($waiting, $ticket->handler_id === null, "{$label}: handler_id");
+            $this->assertSame($waiting, $ticket->assigned_at === null, "{$label}: assigned_at");
+            $this->assertSame($ticket->status === TicketStatus::Ditolak, $ticket->rejection_reason !== null, "{$label}: alasan penolakan");
+            $this->assertSame($ticket->status === TicketStatus::Selesai, $ticket->resolutionProofs()->exists(), "{$label}: bukti penyelesaian");
+            if ($ticket->rating) {
+                $this->assertSame(TicketStatus::Selesai, $ticket->status, "{$label}: rating hanya untuk tiket Selesai");
+            }
+            if ($ticket->first_responded_at) {
+                $this->assertTrue($ticket->first_responded_at->gte($ticket->assigned_at), "{$label}: respons setelah diambil");
+            }
+
             if ($ticket->handler) {
                 $this->assertTrue(Ticket::forStaff($ticket->handler)->whereKey($ticket->id)->exists(), "{$label}: handler punya spesialisasinya");
             }
@@ -111,7 +128,7 @@ class DatabaseSeederTest extends TestCase
     {
         $mahasiswa = User::where('email', 'mahasiswa@uinssc.test')->first();
 
-        $this->assertSame(5, $mahasiswa->reportedTickets()->count());
+        $this->assertSame(8, $mahasiswa->reportedTickets()->count());
         $this->assertTrue($mahasiswa->reportedTickets()->get()->contains->isRejectedForWrongTarget()); // Buat Ulang Tiket
         $this->assertSame(1, $mahasiswa->reportedTickets()->whereHas('comments.attachments')->count()); // balasan berlampiran
 
@@ -120,5 +137,25 @@ class DatabaseSeederTest extends TestCase
         $this->assertSame(['staff.dekanat.fitk@uinssc.test'], Category::find($sensitive->category_id)->staff()->pluck('email')->all());
         $this->assertTrue(Gate::forUser(User::where('email', 'admin.fitk@uinssc.test')->first())->allows('viewReporterIdentity', $sensitive));
         $this->assertFalse(Gate::forUser(User::where('email', 'staff.dekanat.fitk@uinssc.test')->first())->allows('viewReporterIdentity', $sensitive));
+    }
+
+    public function test_demo_data_covers_m3_screens(): void
+    {
+        $akademik = User::where('email', 'staff.akademik.fitk@uinssc.test')->first();
+        $queue = Ticket::forStaff($akademik)->where('status', TicketStatus::Menunggu)->get();
+
+        // Antrean staff akademik punya tiket merah, kuning, dan aman.
+        $this->assertEqualsCanonicalizing(['overdue', 'near', 'ok'], $queue->map->slaState()->all());
+
+        // Tiket Saya staff akademik: 1 diproses yang belum dibalas (untuk mencoba first_responded_at).
+        $mine = $akademik->handledTickets()->where('status', TicketStatus::Diproses)->get();
+        $this->assertCount(1, $mine);
+        $this->assertNull($mine->first()->first_responded_at);
+
+        // Pelapor punya tiket Selesai yang belum dirating, dan ada tiket Selesai yang melewati SLA.
+        $mahasiswa = User::where('email', 'mahasiswa@uinssc.test')->first();
+        $this->assertTrue($mahasiswa->reportedTickets()->where('status', TicketStatus::Selesai)->doesntHave('rating')->exists());
+        $this->assertTrue(Ticket::where('status', TicketStatus::Selesai)->get()->contains(fn (Ticket $t) => $t->slaMet() === false));
+        $this->assertTrue(Ticket::where('status', TicketStatus::Selesai)->get()->contains(fn (Ticket $t) => $t->slaMet() === true));
     }
 }

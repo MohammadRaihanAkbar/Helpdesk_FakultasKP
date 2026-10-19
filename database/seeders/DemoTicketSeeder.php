@@ -9,22 +9,29 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 /**
- * 8 tiket contoh di FITK yang KONSISTEN dengan aturan bisnis, supaya setiap halaman M2 langsung berisi:
+ * 12 tiket contoh di FITK yang KONSISTEN dengan alur PRD 4.5, supaya setiap halaman M2 & M3 langsung berisi:
  *
- *  #  pelapor          kategori (leaf)                         status    yang ikut terisi
- *  -  ---------------  --------------------------------------  --------  -------------------------------------------
- *  1  Ahmad Mahasiswa  Sistem Akademik › KRS belum di-ACC      menunggu  lampiran form (PNG asli di disk privat)
- *  2  Ahmad Mahasiswa  Fasilitas, Sarana & Prasarana           diproses  thread: staff ↔ mahasiswa + 1 catatan internal
- *  3  Ahmad Mahasiswa  Sistem Akademik › Nilai belum muncul    selesai   bukti penyelesaian (PDF), rating 5
- *  4  Ahmad Mahasiswa  Sistem Akademik › Jadwal mata kuliah    ditolak   alasan baku "Salah fakultas/kategori" -> bisa Buat Ulang
- *  5  Ahmad Mahasiswa  Integritas Dosen (SENSITIF)             menunggu  hanya terlihat staff Dekanat
- *  6  Dr. Budi Dosen   Akun, Jaringan & IT                     diproses  thread, Ping admin, notifikasi
- *  7  Citra Alumni     Transkrip Nilai                         selesai   bukti penyelesaian, rating
- *  8  Dedi Alumni Lama Kesalahan Data PDDIKTI                  ditolak   alasan lain (tidak bisa Buat Ulang)
+ *  #   pelapor          kategori (leaf)                         status    yang ikut terisi
+ *  --  ---------------  --------------------------------------  --------  -------------------------------------------
+ *  1   Ahmad Mahasiswa  Sistem Akademik › KRS belum di-ACC      menunggu  lampiran form; antrean Staff Akademik (aman)
+ *  2   Ahmad Mahasiswa  Fasilitas, Sarana & Prasarana           diproses  thread: staff ↔ mahasiswa + 1 catatan internal
+ *  3   Ahmad Mahasiswa  Sistem Akademik › Nilai belum muncul    selesai   bukti penyelesaian (PDF), rating 5, sesuai SLA
+ *  4   Ahmad Mahasiswa  Sistem Akademik › Jadwal mata kuliah    ditolak   alasan baku "Salah fakultas/kategori" -> bisa Buat Ulang
+ *  5   Ahmad Mahasiswa  Integritas Dosen (SENSITIF)             menunggu  hanya di antrean staff Dekanat, identitas disamarkan
+ *  6   Dr. Budi Dosen   Akun, Jaringan & IT                     diproses  thread, Ping admin, notifikasi; MELEWATI SLA (merah)
+ *  7   Citra Alumni     Transkrip Nilai                         selesai   bukti penyelesaian, rating
+ *  8   Dedi Alumni Lama Kesalahan Data PDDIKTI                  ditolak   alasan lain (tidak bisa Buat Ulang)
+ *  9   Ahmad Mahasiswa  Keuangan & UKT                          selesai   bukti, BELUM dirating (coba beri rating), melewati SLA
+ *  10  Ahmad Mahasiswa  Sistem Akademik › Nilai belum muncul    menunggu  antrean Staff Akademik: MELEWATI SLA (merah)
+ *  11  Ahmad Mahasiswa  Sistem Akademik › Jadwal mata kuliah    diproses  Tiket Saya Staff Akademik: MENDEKATI SLA (kuning),
+ *                                                                         belum ada balasan staff (first_responded_at kosong)
+ *  12  Dr. Budi Dosen   Jadwal Mengajar                         menunggu  antrean Staff Akademik: MENDEKATI SLA (kuning)
  *
- * Aturan yang dijaga: kategori selalu LEAF dan audiensnya cocok dengan jenis pelapor; sla_target_hours &
- * reporter_type = snapshot; handler punya spesialisasi kelompok tiket; nomor TKT-YYYYMM-XXXX urut per bulan
- * sesuai tanggal dibuat; resolved_at terisi untuk selesai/ditolak; berkas demo benar-benar ada di disk privat.
+ * Aturan yang dijaga (dicek DatabaseSeederTest): kategori selalu LEAF dan audiensnya cocok dengan jenis pelapor;
+ * sla_target_hours & reporter_type = snapshot; handler punya spesialisasi kelompok tiket; status mengikuti PRD 4.5
+ * (menunggu tanpa handler; diproses/selesai/ditolak punya handler + assigned_at; selesai punya bukti; ditolak punya
+ * alasan; selesai/ditolak punya resolved_at); nomor TKT-YYYYMM-XXXX urut per bulan sesuai tanggal dibuat;
+ * berkas demo benar-benar ada di disk privat.
  *
  * HANYA untuk development. Jangan dijalankan di production.
  */
@@ -121,6 +128,27 @@ class DemoTicketSeeder extends Seeder
             'comment' => 'Cepat dan jelas, terima kasih.', 'created_at' => $created->copy()->addHours(42),
         ]);
 
+        // ===== 9) SELESAI — UKT, belum dirating (pelapor bisa mencoba memberi rating), melewati SLA =====
+        $ukt = $cat('Keuangan & UKT');
+        $created = $now->copy()->subDays(5);
+        $t9 = $this->ticket([
+            'faculty_id' => $fitk, 'title' => 'Pembayaran UKT belum terverifikasi',
+            'description' => 'Saya sudah membayar UKT lewat bank tanggal 2, tetapi status di portal masih "belum bayar".',
+            'status' => 'selesai',
+            'reporter_id' => $mahasiswa, 'reporter_type' => 'mahasiswa',
+            'handler_id' => $staffUmum, 'assigned_at' => $created->copy()->addHours(20),
+            'first_responded_at' => $created->copy()->addHours(21),
+            'resolved_at' => $created->copy()->addHours(80), // 80 jam > SLA 72 jam -> melewati SLA
+            'category_id' => $ukt->id, 'sla_target_hours' => $ukt->sla_hours,
+        ], $created);
+        DB::table('comments')->insert([
+            ['ticket_id' => $t9, 'user_id' => $staffUmum, 'is_internal_note' => false,
+                'body' => 'Mohon kirim bukti transfer agar kami cocokkan dengan bagian keuangan.', 'created_at' => $created->copy()->addHours(21)],
+            ['ticket_id' => $t9, 'user_id' => $staffUmum, 'is_internal_note' => true,
+                'body' => 'Bank terlambat mengirim data rekonsiliasi, sudah dikonfirmasi ke keuangan rektorat.', 'created_at' => $created->copy()->addHours(60)],
+        ]);
+        $this->proof($t9, $staffUmum, 'status-ukt-terverifikasi.png', $created->copy()->addHours(80));
+
         // ===== 4) DITOLAK "Salah fakultas/kategori" — tombol Buat Ulang Tiket muncul =====
         $jadwal = $cat('Jadwal mata kuliah');
         $created = $now->copy()->subDays(4);
@@ -136,6 +164,44 @@ class DemoTicketSeeder extends Seeder
             'category_id' => $jadwal->id, 'sla_target_hours' => $jadwal->sla_hours,
         ], $created);
         $this->attachment(['ticket_id' => $t4], 'jadwal-bentrok.png', $created);
+
+        // ===== 10) MENUNGGU — sudah 80 jam, SLA 72 jam -> merah "Melewati SLA" di antrean =====
+        $created = $now->copy()->subHours(80);
+        $this->ticket([
+            'faculty_id' => $fitk, 'title' => 'Nilai Bahasa Arab belum keluar',
+            'description' => 'Nilai Bahasa Arab II semester lalu belum muncul, padahal teman sekelas sudah.',
+            'status' => 'menunggu',
+            'reporter_id' => $mahasiswa, 'reporter_type' => 'mahasiswa',
+            'category_id' => $nilai->id, 'sla_target_hours' => $nilai->sla_hours,
+        ], $created);
+
+        // ===== 11) DIPROSES — Staff Akademik, 40 jam dari SLA 48 -> kuning; belum dibalas staff =====
+        $jadwalMk = $cat('Jadwal mata kuliah');
+        $created = $now->copy()->subHours(40);
+        $t11 = $this->ticket([
+            'faculty_id' => $fitk, 'title' => 'Ruang kuliah Tafsir belum muncul di jadwal',
+            'description' => 'Di portal, mata kuliah Tafsir Tarbawi kelas B belum ada ruangannya. Kuliah dimulai Senin.',
+            'status' => 'diproses',
+            'reporter_id' => $mahasiswa, 'reporter_type' => 'mahasiswa',
+            'handler_id' => $staffAkd, 'assigned_at' => $created->copy()->addHours(6),
+            'first_responded_at' => null, // staff belum membalas: balasan publik pertamanya akan mengisi kolom ini
+            'category_id' => $jadwalMk->id, 'sla_target_hours' => $jadwalMk->sla_hours,
+        ], $created);
+        DB::table('comments')->insert([
+            'ticket_id' => $t11, 'user_id' => $mahasiswa, 'is_internal_note' => false,
+            'body' => 'Tambahan: kelas A sudah dapat ruang 2.01.', 'created_at' => $created->copy()->addHours(8),
+        ]);
+
+        // ===== 12) MENUNGGU — dosen, Jadwal Mengajar, 38 jam dari SLA 48 -> kuning "Mendekati SLA" =====
+        $mengajar = $cat('Jadwal Mengajar');
+        $created = $now->copy()->subHours(38);
+        $this->ticket([
+            'faculty_id' => $fitk, 'title' => 'Jadwal mengajar Kamis bentrok dengan rapat prodi',
+            'description' => 'Jadwal mengajar Kamis 10.00 bentrok dengan rapat rutin prodi. Mohon dipindah ke sesi siang.',
+            'status' => 'menunggu',
+            'reporter_id' => $dosen, 'reporter_type' => 'dosen',
+            'category_id' => $mengajar->id, 'sla_target_hours' => $mengajar->sla_hours,
+        ], $created);
 
         // ===== 6) DIPROSES — dosen, Wi-Fi; ada Ping dari admin =====
         $it = $cat('Akun, Jaringan & IT');
