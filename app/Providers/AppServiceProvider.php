@@ -6,6 +6,9 @@ use App\Services\Sso\BridgeSsoClient;
 use App\Services\Sso\FakeSsoClient;
 use App\Services\Sso\SsoClient;
 use Carbon\Carbon;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 use InvalidArgumentException;
@@ -41,5 +44,26 @@ class AppServiceProvider extends ServiceProvider
 
         // Aturan password default untuk Password::defaults() (registrasi alumni, akun staff di M4).
         Password::defaults(fn () => Password::min(8));
+
+        $this->configureRateLimiting();
+    }
+
+    /**
+     * Batas jumlah request per IP untuk route tamu (dipakai lewat middleware 'throttle:login', dst.).
+     *
+     * Kenapa limiter BERNAMA, bukan 'throttle:20,1'? Throttle tanpa nama menghitung per IP untuk
+     * SEMUA route sekaligus, jadi hitungan login dan registrasi tercampur: setelah beberapa kali
+     * login, form registrasi alumni ikut ditolak "429 Too Many Requests". Limiter bernama punya
+     * hitungan sendiri-sendiri.
+     *
+     * Ini lapisan kedua. Lapisan utama anti tebak password tetap 5x gagal/menit per login+IP
+     * (LoginRequest). Batas login per IP dibuat longgar (60/menit, PRD 6.3) karena satu jaringan
+     * Wi-Fi kampus bisa dipakai banyak mahasiswa dengan IP publik yang sama.
+     */
+    private function configureRateLimiting(): void
+    {
+        RateLimiter::for('login', fn (Request $request) => Limit::perMinute(60)->by($request->ip()));
+
+        RateLimiter::for('alumni-registration', fn (Request $request) => Limit::perMinute(6)->by($request->ip()));
     }
 }

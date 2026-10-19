@@ -1,5 +1,5 @@
 {{--
-    Isi halaman error (403/404/419/500), memakai layout tamu supaya gayanya sama.
+    Isi halaman error (403/404/419/429/500), memakai layout tamu supaya gayanya sama.
     Pemakaian (di resources/views/errors/404.blade.php):
       <x-layouts.error code="404" title="Halaman tidak ditemukan">Penjelasan singkat.</x-layouts.error>
 
