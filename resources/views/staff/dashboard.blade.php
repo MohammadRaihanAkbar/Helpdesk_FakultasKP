@@ -47,6 +47,35 @@
         @endforeach
     </section>
 
+    {{-- Teguran Ping dari Admin (M4, US-14): tampil hanya bila ada yang belum dibaca --}}
+    @if ($pings->isNotEmpty())
+        <section aria-labelledby="teguran" class="mb-4 rounded-card border border-menunggu-dot/50 bg-menunggu-bg/70 p-4 shadow-card md:mb-5 md:p-5">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+                <h2 id="teguran" class="flex items-center gap-2 text-[17px] font-extrabold text-menunggu-fg">
+                    <x-icon name="ping" /> Teguran dari Admin ({{ $unreadPings }} belum dibaca)
+                </h2>
+                <a href="{{ route('notifications.index') }}" class="inline-flex min-h-10 items-center gap-1 text-sm font-bold text-primary hover:underline">
+                    Semua notifikasi <x-icon name="chevron-right" class="size-4" />
+                </a>
+            </div>
+            <ul class="mt-3 space-y-2">
+                @foreach ($pings as $ping)
+                    <li>
+                        <form method="POST" action="{{ route('notifications.read', $ping->id) }}">
+                            @csrf
+                            @method('PATCH')
+                            <button type="submit" class="block w-full rounded-control border border-line bg-surface px-4 py-3 text-left shadow-sm hover:border-primary/40">
+                                <span class="block font-bold text-ink">{{ $ping->subject }}</span>
+                                <span class="mt-0.5 block text-sm whitespace-pre-line text-muted">{{ $ping->message }}</span>
+                                <span class="mt-1 block text-xs text-muted">{{ $ping->sent_at?->diffForHumans() }} · klik untuk membuka tiket</span>
+                            </button>
+                        </form>
+                    </li>
+                @endforeach
+            </ul>
+        </section>
+    @endif
+
     <div class="grid gap-4 lg:grid-cols-[1.5fr_1fr]">
         <div class="min-w-0 space-y-4">
             <x-ui.card title="Tiket Mendekati / Melewati SLA" description="Dari antrean dan tiket yang sedang Anda proses." class="p-0! md:p-0! [&>header]:px-4 [&>header]:pt-4 md:[&>header]:px-5 md:[&>header]:pt-5">

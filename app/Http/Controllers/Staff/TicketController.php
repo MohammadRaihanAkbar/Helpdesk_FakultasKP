@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Staff;
 use App\Enums\TicketStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Staff\UpdateTicketStatusRequest;
+use App\Models\Notification;
 use App\Models\Ticket;
 use App\Services\Tickets\TicketWorkflowService;
 use Illuminate\Http\JsonResponse;
@@ -55,7 +56,10 @@ class TicketController extends Controller
             return to_route('staff.tickets.show', $ticket);
         }
 
-        $ticket->load(['category.parent', 'faculty', 'handler', 'reporter', 'attachments', 'resolutionProofs.uploader', 'rating', 'pingLogs.admin']);
+        $ticket->load(['category.parent', 'faculty', 'handler', 'reporter', 'attachments', 'resolutionProofs.uploader', 'rating', 'pingLogs.admin', 'pingLogs.staff']);
+
+        // Teguran Ping untuk tiket ini dianggap sudah dibaca begitu Staff membuka tiketnya (badge lonceng berkurang).
+        Notification::markTicketRead($request->user(), $ticket);
 
         // Staff yang boleh melihat tiket juga boleh membaca catatan internal (F-TKS-08).
         $comments = $ticket->comments()

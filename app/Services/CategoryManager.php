@@ -47,6 +47,36 @@ class CategoryManager
     }
 
     /**
+     * Pilihan filter "Kelompok / Jenis Masalah" (Monitor Antrean, Laporan, Riwayat Staff — M4):
+     *   [id kelompok => 'Sistem Akademik & Perkuliahan', id jenis => '— KRS belum di-ACC', ...]
+     * Kategori NONAKTIF ikut tampil, karena tiket lama tetap memakainya.
+     *
+     * @param  list<int>|null  $onlyGroupIds  batasi ke kelompok tertentu (mis. spesialisasi staff); null = semua
+     * @return array<int, string>
+     */
+    public function filterOptions(int $facultyId, ?array $onlyGroupIds = null): array
+    {
+        $options = [];
+
+        $groups = Category::forFaculty($facultyId)
+            ->topLevel()
+            ->when($onlyGroupIds !== null, fn ($query) => $query->whereIn('id', $onlyGroupIds))
+            ->with(['children' => fn ($query) => $query->orderBy('id')])
+            ->orderByDesc('is_standard')
+            ->orderBy('id')
+            ->get();
+
+        foreach ($groups as $group) {
+            $options[$group->id] = $group->name;
+            foreach ($group->children as $child) {
+                $options[$child->id] = '— '.$child->name;
+            }
+        }
+
+        return $options;
+    }
+
+    /**
      * Kelompok yang boleh menjadi INDUK kategori tambahan (PRD 2.7 aturan 3):
      * kelompok tambahan, atau kelompok standar yang sudah punya Jenis Masalah.
      *

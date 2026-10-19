@@ -166,6 +166,46 @@ class BusinessRuleException extends RuntimeException
     }
 
     // ------------------------------------------------------------------
+    // Ping / Ingatkan Staff (M4, US-14)
+    // ------------------------------------------------------------------
+
+    /** PRD 9.2: 422 jika Kelompok Layanan tiket belum memiliki Staff aktif. Kalimat persis dari US-14. */
+    public static function noStaffForGroup(): self
+    {
+        return new self(
+            'NO_ACTIVE_STAFF',
+            'Belum ada Staff untuk kelompok ini — tetapkan spesialisasi terlebih dahulu.',
+            422,
+        );
+    }
+
+    /** Tiket Diproses yang Staff penangannya sudah dinonaktifkan Admin: tidak ada yang bisa menerima Ping. */
+    public static function handlerInactive(): self
+    {
+        return new self(
+            'NO_ACTIVE_STAFF',
+            'Staff penangan tiket ini sedang nonaktif, sehingga Ping tidak dapat dikirim.',
+            422,
+        );
+    }
+
+    /** Ping hanya untuk tiket yang masih terbuka (Menunggu/Diproses). */
+    public static function pingClosedTicket(): self
+    {
+        return new self('TICKET_CLOSED', 'Tiket sudah ditutup, sehingga tidak perlu di-Ping.', 409);
+    }
+
+    /** Penahan klik ganda: Ping ke tiket yang sama dalam jeda singkat. */
+    public static function pingTooSoon(int $seconds): self
+    {
+        return new self(
+            'PING_TOO_SOON',
+            "Ping untuk tiket ini baru saja dikirim. Tunggu {$seconds} detik sebelum mengirim Ping lagi.",
+            429,
+        );
+    }
+
+    // ------------------------------------------------------------------
     // Tampilan error
     // ------------------------------------------------------------------
 

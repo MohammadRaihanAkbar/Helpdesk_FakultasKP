@@ -16,8 +16,8 @@ use Illuminate\Support\Facades\Route;
  * bertambah sendiri ketika route baru ditambahkan di milestone berikutnya. Hal yang sama
  * berlaku untuk kotak pencarian di top bar.
  *
- * Status per M3: pelapor dan Staff sudah punya semua menunya (Dashboard, Antrean, Tiket Saya, Riwayat);
- * Admin Fakultas sudah punya Kelola Staff & Pengaturan Layanan. Sisanya menyusul (M4+).
+ * Status per M4: pelapor, Staff, dan Admin Fakultas sudah punya semua menunya (PRD 7.5).
+ * Menu Super Admin (Fakultas, Pengguna) menyusul di M5.
  */
 class Navigation
 {
@@ -79,6 +79,7 @@ class Navigation
      *   Pelapor "Tiket Saya"  -> tiket aktif (Menunggu + Diproses)
      *   Staff "Antrean Tiket" -> tiket Menunggu sesuai spesialisasi
      *   Staff "Tiket Saya"    -> tiket Diproses yang sedang ia tangani
+     *   Admin "Monitor Antrean" -> Tiket Menganggur (Menunggu + sudah melewati SLA) di fakultasnya
      */
     private static function count(User $user, string $route): ?int
     {
@@ -86,6 +87,11 @@ class Navigation
             'tickets.index' => $user->reportedTickets()->open()->count(),
             'staff.queue' => Ticket::forStaff($user)->where('status', TicketStatus::Menunggu)->count(),
             'staff.tickets.index' => $user->handledTickets()->where('status', TicketStatus::Diproses)->count(),
+            'admin.queue' => $user->faculty_id === null ? null : Ticket::where('faculty_id', $user->faculty_id)
+                ->where('status', TicketStatus::Menunggu)
+                ->get(['id', 'status', 'created_at', 'sla_target_hours'])
+                ->filter(fn (Ticket $ticket) => $ticket->slaState() === 'overdue')
+                ->count(),
             default => null,
         };
     }
@@ -141,10 +147,10 @@ class Navigation
             ],
             Role::Admin => [
                 ['route' => 'admin.dashboard', 'label' => 'Dashboard', 'icon' => 'layout-dashboard'],
-                ['route' => 'admin.queue', 'label' => 'Monitor Antrean', 'icon' => 'inbox'],
-                ['route' => 'admin.staff.index', 'label' => 'Kelola Staff', 'icon' => 'users', 'match' => ['admin.staff.*']],
-                ['route' => 'admin.services.index', 'label' => 'Pengaturan Layanan', 'icon' => 'sliders', 'match' => ['admin.services.*']],
-                ['route' => 'admin.reports.index', 'label' => 'Laporan', 'icon' => 'chart', 'match' => ['admin.reports.*']],
+                ['route' => 'admin.queue', 'label' => 'Monitor Antrean', 'short' => 'Antrean', 'icon' => 'inbox', 'match' => ['admin.queue', 'admin.tickets.*']],
+                ['route' => 'admin.staff.index', 'label' => 'Kelola Staff', 'short' => 'Staff', 'icon' => 'users', 'match' => ['admin.staff.*']],
+                ['route' => 'admin.services.index', 'label' => 'Pengaturan Layanan', 'short' => 'Layanan', 'icon' => 'sliders', 'match' => ['admin.services.*']],
+                ['route' => 'admin.reports.index', 'label' => 'Laporan & Analitik', 'short' => 'Laporan', 'icon' => 'chart', 'match' => ['admin.reports.*']],
             ],
             Role::SuperAdmin => [
                 ['route' => 'superadmin.dashboard', 'label' => 'Dashboard', 'icon' => 'layout-dashboard'],

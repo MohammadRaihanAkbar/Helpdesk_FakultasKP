@@ -5,6 +5,7 @@ use App\Http\Controllers\Auth\AlumniRegistrationController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\EndUser;
 use App\Http\Controllers\FileController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Staff;
 use App\Http\Controllers\SuperAdmin;
 use App\Http\Middleware\EnsureAlumniRegistrationKey;
@@ -70,6 +71,14 @@ Route::middleware('auth')->group(function () {
     Route::get('/proofs/{proof}', [FileController::class, 'proof'])->whereNumber('proof')->name('proofs.show');
 });
 
+// ---------- Notifikasi in-app (semua peran; tiap user hanya notifikasinya sendiri) ----------
+// M4: teguran Ping untuk Staff. Notifikasi lain (balasan, status) menyusul di M5.
+Route::middleware('auth')->prefix('notifications')->name('notifications.')->group(function () {
+    Route::get('/', [NotificationController::class, 'index'])->name('index');
+    Route::patch('/read-all', [NotificationController::class, 'readAll'])->name('read-all');
+    Route::patch('/{notification}/read', [NotificationController::class, 'read'])->whereNumber('notification')->name('read');
+});
+
 // ---------- Staff Fakultas ----------
 Route::middleware(['auth', 'role:staff'])->prefix('staff')->name('staff.')->group(function () {
     Route::get('/dashboard', Staff\DashboardController::class)->name('dashboard');
@@ -95,6 +104,13 @@ Route::middleware(['auth', 'role:staff'])->prefix('staff')->name('staff.')->grou
 // ---------- Admin Fakultas ----------
 Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/dashboard', Admin\DashboardController::class)->name('dashboard');
+
+    // Monitor Antrean (US-16) + detail tiket HANYA BACA + Ping/Ingatkan Staff (US-14). {ticket} hanya angka.
+    Route::get('/queue', [Admin\QueueController::class, 'index'])->name('queue');
+    Route::get('/tickets/{ticket}', [Admin\TicketController::class, 'show'])->whereNumber('ticket')->name('tickets.show');
+    Route::get('/tickets/{ticket}/pings', [Admin\TicketController::class, 'pings'])->whereNumber('ticket')->name('tickets.pings');
+    Route::post('/tickets/{ticket}/ping', [Admin\PingController::class, 'store'])
+        ->whereNumber('ticket')->middleware('throttle:pings')->name('tickets.ping');
 
     // Pengaturan Layanan (US-11): katalog kategori + target SLA fakultas admin
     Route::controller(Admin\ServiceController::class)->prefix('services')->name('services.')->group(function () {

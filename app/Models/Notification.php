@@ -41,4 +41,17 @@ class Notification extends Model
     {
         return $this->belongsTo(Ticket::class);
     }
+
+    /**
+     * Tandai notifikasi in-app milik $user untuk satu tiket sebagai sudah dibaca.
+     * Dipanggil saat Staff membuka detail tiket: teguran Ping untuk tiket itu dianggap sudah dilihat.
+     */
+    public static function markTicketRead(User $user, Ticket $ticket): int
+    {
+        return self::where('user_id', $user->id)
+            ->where('ticket_id', $ticket->id)
+            ->where('type', NotificationType::InApp)
+            ->where('is_read', false)
+            ->update(['is_read' => true, 'read_at' => now()]);
+    }
 }

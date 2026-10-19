@@ -59,6 +59,15 @@ class TicketPolicy
         return $user->is_active && $this->isHandler($user, $ticket);
     }
 
+    /**
+     * Ping / Ingatkan Staff (US-14): hanya Admin Fakultas pemilik fakultas tiket.
+     * Status tiket (harus terbuka) & ada-tidaknya penerima dicek PingService.
+     */
+    public function ping(User $user, Ticket $ticket): bool
+    {
+        return $user->isAdmin() && $user->faculty_id !== null && $user->faculty_id === $ticket->faculty_id;
+    }
+
     /** Rating CSAT (US-05): hanya pelapor pemilik tiket. Status Selesai & "sekali saja" dicek RatingService. */
     public function rate(User $user, Ticket $ticket): bool
     {

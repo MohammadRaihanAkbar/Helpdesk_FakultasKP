@@ -72,6 +72,10 @@ class AppServiceProvider extends ServiceProvider
 
         // Kirim tiket & balasan thread: 30/menit per AKUN (bukan per IP, karena Wi-Fi kampus berbagi IP).
         // Cukup longgar untuk pemakaian wajar, tapi menahan skrip yang membanjiri antrean.
+        // Ping Admin (US-14): PRD tidak membatasi jumlah Ping, jadi ini hanya penahan skrip/klik beruntun
+        // (20/menit per akun). Klik ganda pada tiket yang sama ditahan PingService (jeda 30 detik).
+        RateLimiter::for('pings', fn (Request $request) => Limit::perMinute(20)->by($request->user()?->id ?: $request->ip()));
+
         RateLimiter::for('tickets', fn (Request $request) => Limit::perMinute(30)->by($request->user()?->id ?: $request->ip()));
     }
 }

@@ -16,7 +16,8 @@ use Illuminate\View\View;
  * Total Ditangani Bulan Ini (= tiket yang saya tutup bulan ini, Selesai + Ditolak).
  * Kartu ke-6 (tambahan): rata-rata rating CSAT dari tiket yang pernah saya tangani.
  *
- * Daftar: tiket Mendekati/Melewati SLA (antrean + tiket saya) dan 5 tiket yang sedang saya proses.
+ * Daftar: teguran Ping dari Admin yang belum dibaca (M4), tiket Mendekati/Melewati SLA (antrean + tiket saya),
+ * dan 5 tiket yang sedang saya proses.
  */
 class DashboardController extends Controller
 {
@@ -62,8 +63,14 @@ class DashboardController extends Controller
             ->take(5)
             ->values();
 
+        // Teguran Ping dari Admin yang belum dibaca (notifikasi in-app, US-14 / F-NTF-06).
+        $pings = $staff->inAppNotifications()->where('is_read', false)->with('ticket')
+            ->orderByDesc('sent_at')->orderByDesc('id')->limit(5)->get();
+
         return view('staff.dashboard', [
             'user' => $staff,
+            'pings' => $pings,
+            'unreadPings' => $staff->inAppNotifications()->where('is_read', false)->count(),
             'stats' => $stats,
             'slaAlerts' => $slaAlerts,
             'inProgress' => $inProgress->sortByDesc('assigned_at')->take(5)->values(),
