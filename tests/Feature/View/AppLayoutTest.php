@@ -55,7 +55,7 @@ class AppLayoutTest extends TestCase
 
         $this->assertSame(['Dashboard', 'Tiket Saya'], $labels(User::factory()->create()));
         $this->assertSame(['Dashboard', 'Antrean Tiket'], $labels(User::factory()->staff()->create()));
-        $this->assertSame(['Dashboard', 'Monitor Antrean', 'Pengaturan Layanan'], $labels(User::factory()->admin()->create()));
+        $this->assertSame(['Dashboard', 'Monitor Antrean', 'Kelola Staff', 'Pengaturan Layanan'], $labels(User::factory()->admin()->create()));
         $this->assertSame(['Dashboard', 'Pengguna'], $labels(User::factory()->superAdmin()->create()));
     }
 

@@ -67,6 +67,14 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
         Route::patch('/{category}/status', 'status')->name('status');
         Route::delete('/{category}', 'destroy')->name('destroy');
     });
+
+    // Kelola Staff (US-12) + Spesialisasi (US-13). {staff} = id user ber-peran staff.
+    Route::get('/staff', [Admin\StaffController::class, 'index'])->name('staff.index');
+    Route::get('/staff/create', [Admin\StaffController::class, 'create'])->name('staff.create');
+    Route::post('/staff', [Admin\StaffController::class, 'store'])->name('staff.store');
+    Route::patch('/staff/{staff}/status', [Admin\StaffController::class, 'status'])->name('staff.status');
+    Route::get('/staff/{staff}/specialties', [Admin\StaffSpecialtyController::class, 'edit'])->name('staff.specialties.edit');
+    Route::put('/staff/{staff}/specialties', [Admin\StaffSpecialtyController::class, 'update'])->name('staff.specialties.update');
 });
 
 // ---------- Super Admin ----------
