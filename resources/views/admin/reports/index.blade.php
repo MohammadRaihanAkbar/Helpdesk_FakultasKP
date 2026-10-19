@@ -77,8 +77,8 @@
         </div>
     </section>
 
-    <div class="mb-4 grid gap-4 lg:grid-cols-[1.4fr_1fr]">
-        <x-ui.card :title="'Volume tiket masuk '.$unitLabels[$unit]" :description="$filters->label()">
+    <div class="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-[1.4fr_1fr]">
+        <x-ui.card :title="'Volume tiket masuk '.$unitLabels[$unit]" :description="$filters->label()" class="min-w-0">
             <x-charts.bars :caption="'Jumlah tiket masuk '.$unitLabels[$unit]"
                            :labels="array_column($volume, 'label')"
                            :series="[['name' => 'Tiket masuk', 'values' => array_column($volume, 'value'), 'class' => 'bg-primary']]" />
@@ -173,7 +173,7 @@
                             <tr class="align-top">
                                 <td class="px-4 py-2.5 whitespace-nowrap md:px-5"><a href="{{ route('admin.tickets.show', $ticket) }}" class="font-mono font-semibold text-accent-ink hover:underline">{{ $ticket->ticket_number }}</a></td>
                                 <td class="min-w-36 px-3 py-2.5">{{ $ticket->reporter?->name }}<span class="block text-xs text-muted">{{ $ticket->reporter_type->label() }}</span></td>
-                                <td class="max-w-56 px-3 py-2.5">{{ $ticket->category->pathLabel() }}</td>
+                                <td class="min-w-48 max-w-64 px-3 py-2.5">{{ $ticket->category->pathLabel() }}</td>
                                 <td class="px-3 py-2.5"><x-ui.badge :status="$ticket->status" /></td>
                                 <td class="px-3 py-2.5 whitespace-nowrap">{{ $ticket->created_at->format('d/m/Y H:i') }}</td>
                                 <td class="px-3 py-2.5 whitespace-nowrap">{{ $ticket->assigned_at?->format('d/m/Y H:i') ?? '–' }}</td>

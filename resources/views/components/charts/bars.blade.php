@@ -50,7 +50,8 @@
         </div>
     </div>
 
-    <table class="sr-only">
+    <div class="sr-only">
+    <table>
         <caption>{{ $caption }}</caption>
         <thead><tr><th scope="col">Waktu</th>@foreach ($series as $s)<th scope="col">{{ $s['name'] }}</th>@endforeach</tr></thead>
         <tbody>
@@ -59,4 +60,5 @@
             @endforeach
         </tbody>
     </table>
+    </div>
 </figure>

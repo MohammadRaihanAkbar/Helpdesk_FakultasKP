@@ -3,11 +3,11 @@
     Dibuat sendiri karena tampilan bawaan Laravel memakai warna Tailwind standar yang tidak ada di tema kita.
 --}}
 @if ($paginator->hasPages())
-    <nav role="navigation" aria-label="Navigasi halaman" class="flex items-center justify-between gap-3 text-sm">
+    <nav role="navigation" aria-label="Navigasi halaman" class="flex flex-wrap items-center justify-between gap-3 text-sm">
         <p class="text-muted">
             Menampilkan {{ $paginator->firstItem() }}–{{ $paginator->lastItem() }} dari {{ $paginator->total() }}
         </p>
-        <div class="flex gap-2">
+        <div class="flex shrink-0 gap-2">
             @if ($paginator->onFirstPage())
                 <span class="inline-flex min-h-11 items-center rounded-control border border-line px-4 text-muted opacity-60">Sebelumnya</span>
             @else
