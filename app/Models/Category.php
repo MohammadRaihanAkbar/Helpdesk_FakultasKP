@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\UserType;
+use App\Services\CategoryCatalogService;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
@@ -94,6 +95,13 @@ class Category extends Model
         $query->where('is_active', true);
     }
 
+    /** Kategori milik satu fakultas. */
+    #[Scope]
+    protected function forFaculty(Builder $query, int $facultyId): void
+    {
+        $query->where('faculty_id', $facultyId);
+    }
+
     /** Hanya kategori leaf: tidak punya anak sama sekali. */
     #[Scope]
     protected function leaves(Builder $query): void
@@ -159,5 +167,55 @@ class Category extends Model
     public function isVisibleTo(UserType $userType): bool
     {
         return $this->group()->audiences()->where('user_type', $userType)->exists();
+    }
+
+    /**
+     * Aktif "sungguhan": dirinya On DAN induknya (kalau ada) juga On.
+     * Status Off menurun ke anak (PRD 2.7 aturan 8): Jenis Masalah di bawah kelompok yang Off ikut tidak tampil,
+     * walaupun kolom is_active milik anak itu sendiri masih TRUE.
+     */
+    public function isEffectivelyActive(): bool
+    {
+        return $this->is_active && ($this->isGroup() || $this->parent->is_active);
+    }
+
+    /** Kelompok sensitif (Integritas Dosen) atau Jenis Masalah di bawahnya. */
+    public function isSensitive(): bool
+    {
+        $group = $this->group();
+
+        return $group->is_standard && in_array($group->name, CategoryCatalogService::SENSITIVE_GROUPS, true);
+    }
+
+    /**
+     * Daftar jenis pelapor (audiens) kelompok ini; Jenis Masalah mewarisi dari induk.
+     *
+     * @return list<UserType>
+     */
+    public function audienceTypes(): array
+    {
+        return $this->group()->audiences
+            ->pluck('user_type')
+            ->sortBy(fn (UserType $type) => array_search($type, UserType::cases(), true))
+            ->values()
+            ->all();
+    }
+
+    /** Label kategori untuk daftar tiket: "Kelompok › Jenis", atau nama kelompok saja. */
+    public function pathLabel(): string
+    {
+        return $this->isGroup() ? $this->name : $this->parent->name.' › '.$this->name;
+    }
+
+    /**
+     * Pernah dipakai tiket? Untuk kelompok, tiket di Jenis Masalah-nya juga dihitung,
+     * karena menghapus kelompok berarti ikut menghapus anak-anaknya.
+     */
+    public function isUsedByTickets(): bool
+    {
+        return Ticket::query()
+            ->where('category_id', $this->id)
+            ->orWhereIn('category_id', $this->children()->select('id'))
+            ->exists();
     }
 }

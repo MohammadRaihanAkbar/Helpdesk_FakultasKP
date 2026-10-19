@@ -24,6 +24,17 @@ use Illuminate\Support\Facades\DB;
 class CategoryCatalogService
 {
     /**
+     * Kelompok Layanan SENSITIF (PRD 2.7 aturan 10): aduan terhadap dosen.
+     *   - identitas pelapor hanya untuk Staff penangan & Admin Fakultas (TicketPolicy::viewReporterIdentity)
+     *   - diberi label "Sensitif" + peringatan di halaman spesialisasi staff
+     *
+     * Ditandai lewat NAMA kategori standar (tidak ada kolom khusus di ERD). Aman, karena nama kategori
+     * standar dikunci (tidak bisa diganti Admin Fakultas), dan kategori tambahan tidak bisa memakai nama
+     * yang sama (UNIQUE faculty_id + name).
+     */
+    public const SENSITIVE_GROUPS = ['Integritas Dosen'];
+
+    /**
      * Isi katalog. Satu elemen = satu Kelompok Layanan.
      * 'audiences' hanya ditulis di kelompok; Jenis Masalah (children) mewarisi audiens induknya.
      */

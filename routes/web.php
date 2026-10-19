@@ -56,6 +56,17 @@ Route::middleware(['auth', 'role:staff'])->prefix('staff')->name('staff.')->grou
 // ---------- Admin Fakultas ----------
 Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/dashboard', Admin\DashboardController::class)->name('dashboard');
+
+    // Pengaturan Layanan (US-11): katalog kategori + target SLA fakultas admin
+    Route::controller(Admin\ServiceController::class)->prefix('services')->name('services.')->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::get('/create', 'create')->name('create');
+        Route::post('/', 'store')->name('store');
+        Route::get('/{category}/edit', 'edit')->name('edit');
+        Route::put('/{category}', 'update')->name('update');
+        Route::patch('/{category}/status', 'status')->name('status');
+        Route::delete('/{category}', 'destroy')->name('destroy');
+    });
 });
 
 // ---------- Super Admin ----------

@@ -34,7 +34,7 @@ class UserSeeder extends Seeder
         // ---------- 2. Admin Fakultas (faculty_id = fakultas penugasan) ----------
         foreach ($fac as $code => $facultyId) {
             $this->upsertUser([
-                'name' => "Admin {$code}", 'email' => 'admin.' . strtolower($code) . '@uinssc.test',
+                'name' => "Admin {$code}", 'email' => 'admin.'.strtolower($code).'@uinssc.test',
                 'role' => 'admin', 'faculty_id' => $facultyId, 'password' => $password,
             ]);
         }

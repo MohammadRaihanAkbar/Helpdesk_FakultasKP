@@ -26,9 +26,9 @@ class FacultySeeder extends Seeder
             DB::table('faculties')->updateOrInsert(
                 ['code' => $f['code']],                       // kunci pencarian
                 [
-                    'name'       => $f['name'],
-                    'slug'       => strtolower($f['code']),   // fitk, fua, ...
-                    'is_active'  => true,
+                    'name' => $f['name'],
+                    'slug' => strtolower($f['code']),   // fitk, fua, ...
+                    'is_active' => true,
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]

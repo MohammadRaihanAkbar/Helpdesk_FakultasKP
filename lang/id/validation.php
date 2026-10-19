@@ -35,6 +35,8 @@ return [
     'digits' => ':Attribute harus terdiri dari :digits digit.',
     'digits_between' => ':Attribute harus terdiri dari :min sampai :max digit.',
     'email' => ':Attribute harus berupa alamat email yang valid.',
+    'enum' => ':Attribute yang dipilih tidak valid.',
+    'extensions' => ':Attribute harus berakhiran salah satu dari: :values.',
     'exists' => ':Attribute yang dipilih tidak valid.',
     'file' => ':Attribute harus berupa berkas.',
     'image' => ':Attribute harus berupa gambar.',
@@ -67,6 +69,7 @@ return [
     'required' => ':Attribute wajib diisi.',
     'required_if' => ':Attribute wajib diisi jika :other adalah :value.',
     'required_with' => ':Attribute wajib diisi jika :values diisi.',
+    'required_without' => ':Attribute wajib diisi jika :values tidak diisi.',
     'same' => ':Attribute dan :other harus sama.',
     'size' => [
         'array' => ':Attribute harus berisi :size item.',
@@ -108,6 +111,9 @@ return [
         'comment' => 'komentar',
         'rejection_reason' => 'alasan penolakan',
         'sla_hours' => 'target SLA (jam)',
+        'attachments' => 'lampiran',
+        'attachments.*' => 'lampiran',
+        'category_ids' => 'spesialisasi',
         'remember' => 'ingat saya',
     ],
 

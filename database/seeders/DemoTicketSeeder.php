@@ -28,20 +28,20 @@ class DemoTicketSeeder extends Seeder
 
         $fitk = DB::table('faculties')->where('code', 'FITK')->value('id');
         $user = fn (string $email) => DB::table('users')->where('email', $email)->value('id');
-        $cat  = fn (string $name) => DB::table('categories')
+        $cat = fn (string $name) => DB::table('categories')
             ->where('faculty_id', $fitk)->where('name', $name)->first(['id', 'sla_hours']);
 
-        $mahasiswa  = $user('mahasiswa@uinssc.test');
-        $dosen      = $user('dosen@uinssc.test');
+        $mahasiswa = $user('mahasiswa@uinssc.test');
+        $dosen = $user('dosen@uinssc.test');
         $alumni2023 = $user('alumni2023@uinssc.test');
         $alumni2019 = $user('dedi.alumni2019@example.com');
-        $staffAkd   = $user('staff.akademik.fitk@uinssc.test');
-        $staffUmum  = $user('staff.umum.fitk@uinssc.test');
-        $staffAlm   = $user('staff.alumni.fitk@uinssc.test');
-        $adminFitk  = $user('admin.fitk@uinssc.test');
+        $staffAkd = $user('staff.akademik.fitk@uinssc.test');
+        $staffUmum = $user('staff.umum.fitk@uinssc.test');
+        $staffAlm = $user('staff.alumni.fitk@uinssc.test');
+        $adminFitk = $user('admin.fitk@uinssc.test');
 
         $now = now();
-        $no  = fn (int $i) => 'TKT-' . $now->format('Ym') . '-' . str_pad($i, 4, '0', STR_PAD_LEFT);
+        $no = fn (int $i) => 'TKT-'.$now->format('Ym').'-'.str_pad($i, 4, '0', STR_PAD_LEFT);
 
         // ===== 1) MENUNGGU — baru dibuat, belum diambil staff =====
         $krs = $cat('KRS belum di-ACC'); // kategori LEAF (anak dari Sistem Akademik)
@@ -77,9 +77,9 @@ class DemoTicketSeeder extends Seeder
         ]);
         DB::table('comments')->insert([
             ['ticket_id' => $t2, 'user_id' => $staffUmum, 'is_internal_note' => false,
-             'body' => 'Baik Pak, sudah kami teruskan ke teknisi jaringan.', 'created_at' => $created->copy()->addHours(4)],
+                'body' => 'Baik Pak, sudah kami teruskan ke teknisi jaringan.', 'created_at' => $created->copy()->addHours(4)],
             ['ticket_id' => $t2, 'user_id' => $staffUmum, 'is_internal_note' => true, // hanya staff & admin yang lihat
-             'body' => 'Access point AP-L2-03 perlu diganti, menunggu barang dari pusat.', 'created_at' => $created->copy()->addHours(5)],
+                'body' => 'Access point AP-L2-03 perlu diganti, menunggu barang dari pusat.', 'created_at' => $created->copy()->addHours(5)],
         ]);
         DB::table('ping_logs')->insert([ // admin menegur staff karena hampir lewat SLA 24 jam
             'ticket_id' => $t2, 'admin_id' => $adminFitk, 'staff_id' => $staffUmum,

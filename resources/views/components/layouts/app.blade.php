@@ -186,6 +186,11 @@
                 <x-ui.alert type="success" class="mb-5">{{ session('status') }}</x-ui.alert>
             @endif
 
+            {{-- Pelanggaran aturan bisnis yang tidak menempel ke field tertentu (App\Exceptions\BusinessRuleException). --}}
+            @if ($errors->has(\App\Exceptions\BusinessRuleException::GENERAL_FIELD))
+                <x-ui.alert type="error" class="mb-5">{{ $errors->first(\App\Exceptions\BusinessRuleException::GENERAL_FIELD) }}</x-ui.alert>
+            @endif
+
             {{ $slot }}
         </main>
     </div>
