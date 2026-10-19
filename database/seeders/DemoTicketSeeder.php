@@ -27,6 +27,13 @@ use Illuminate\Support\Facades\Storage;
  *                                                                         belum ada balasan staff (first_responded_at kosong)
  *  12  Dr. Budi Dosen   Jadwal Mengajar                         menunggu  antrean Staff Akademik: MENDEKATI SLA (kuning)
  *
+ * Tambahan M4 (laporan & monitoring Admin):
+ *  13  Yusuf Alumni     Transkrip Nilai                         menunggu  MELEWATI SLA, sudah 2x di-Ping admin (staff alumni)
+ *  +   Ping admin ke tiket #10 (Nilai Bahasa Arab, menunggu, merah) -> teguran belum dibaca di dashboard Staff Akademik
+ *  +   ±90 tiket RIWAYAT (Selesai/Ditolak) selama 5 bulan terakhir di FITK & FEBI, milik 7 pelapor tambahan,
+ *      dengan waktu ambil/selesai bervariasi (ada yang melewati SLA), rating 2–5, dan beberapa Ping lama.
+ *      Dibuat acak tetapi SELALU SAMA setiap seeding (mt_srand dengan angka tetap), untuk grafik & laporan.
+ *
  * Aturan yang dijaga (dicek DatabaseSeederTest): kategori selalu LEAF dan audiensnya cocok dengan jenis pelapor;
  * sla_target_hours & reporter_type = snapshot; handler punya spesialisasi kelompok tiket; status mengikuti PRD 4.5
  * (menunggu tanpa handler; diproses/selesai/ditolak punya handler + assigned_at; selesai punya bukti; ditolak punya
@@ -44,6 +51,9 @@ class DemoTicketSeeder extends Seeder
 
     /** @var array<string, int> nomor urut terakhir per bulan, mis. ['202610' => 3] */
     private array $sequence = [];
+
+    /** @var list<array> Ping demo yang ditulis SETELAH nomor tiket final (isi notifikasi memuat nomor tiket). */
+    private array $pendingPings = [];
 
     public function run(): void
     {
@@ -221,15 +231,8 @@ class DemoTicketSeeder extends Seeder
             ['ticket_id' => $t6, 'user_id' => $staffUmum, 'is_internal_note' => true, // hanya staff & admin yang lihat
                 'body' => 'Access point AP-L2-03 perlu diganti, menunggu barang dari pusat.', 'created_at' => $created->copy()->addHours(5)],
         ]);
-        DB::table('ping_logs')->insert([ // admin menegur staff karena sudah lewat SLA 24 jam
-            'ticket_id' => $t6, 'admin_id' => $adminFitk, 'staff_id' => $staffUmum,
-            'message' => 'Mohon dipercepat, SLA sudah terlewati.', 'created_at' => $now,
-        ]);
-        DB::table('notifications')->insert([ // notifikasi dari Ping di atas
-            'user_id' => $staffUmum, 'ticket_id' => $t6, 'type' => 'in_app',
-            'subject' => 'Ping dari Admin FITK', 'message' => 'Mohon dipercepat, SLA sudah terlewati.',
-            'is_read' => false, 'sent_at' => $now,
-        ]);
+        // Admin menegur staff penangan karena sudah lewat SLA 24 jam (+ notifikasi in-app).
+        $this->ping($t6, $adminFitk, [$staffUmum], 'Mohon dipercepat, SLA sudah terlewati.', $now->copy()->subMinutes(30), false);
 
         // ===== 2) DIPROSES — mahasiswa, proyektor; thread dua arah + catatan internal =====
         $fas = $cat('Fasilitas, Sarana & Prasarana');
@@ -278,6 +281,199 @@ class DemoTicketSeeder extends Seeder
             'category_id' => $krs->id, 'sla_target_hours' => $krs->sla_hours, // snapshot SLA (24)
         ], $created);
         $this->attachment(['ticket_id' => $t1], 'screenshot-krs.png', $created); // lampiran form awal
+
+        // ===== 13) MENUNGGU — alumni, Transkrip Nilai, sudah 4 hari (SLA 72 jam) -> merah, 2x di-Ping (M4) =====
+        $yusuf = $user('yusuf.alumni2022@uinssc.test');
+        $created = $now->copy()->subHours(100);
+        $t13 = $this->ticket([
+            'faculty_id' => $fitk, 'title' => 'Legalisir transkrip untuk melamar CPNS belum diproses',
+            'description' => 'Saya mengajukan legalisir transkrip 5 lembar untuk berkas CPNS. Batas unggah berkas minggu depan.',
+            'status' => 'menunggu',
+            'reporter_id' => $yusuf, 'reporter_type' => 'alumni',
+            'category_id' => $trn->id, 'sla_target_hours' => $trn->sla_hours,
+        ], $created);
+        $this->ping($t13, $adminFitk, [$staffAlm], 'Tiket legalisir ini sudah melewati SLA, mohon diambil hari ini.', $now->copy()->subHours(26), true);
+        $this->ping($t13, $adminFitk, [$staffAlm], 'Pengingat kedua: pelapor butuh untuk berkas CPNS.', $now->copy()->subHours(3), false);
+
+        // Ping admin ke tiket #10 yang masih menunggu & merah -> teguran belum dibaca untuk Staff Akademik.
+        $t10 = DB::table('tickets')->where('title', 'Nilai Bahasa Arab belum keluar')->value('id');
+        $this->ping($t10, $adminFitk, [$staffAkd], 'Nilai Bahasa Arab sudah lewat 3 hari, mohon segera diambil.', $now->copy()->subHours(1), false);
+
+        // ===== Riwayat beberapa bulan untuk grafik & laporan Admin (M4) =====
+        $this->history($fitk, 'FITK', $now, $adminFitk);
+        $this->history(DB::table('faculties')->where('code', 'FEBI')->value('id'), 'FEBI', $now,
+            DB::table('users')->where('email', 'admin.febi@uinssc.test')->value('id'));
+
+        $this->renumber();
+
+        foreach ($this->pendingPings as $ping) {
+            $this->writePing(...$ping);
+        }
+    }
+
+    /**
+     * Tiket RIWAYAT (Selesai/Ditolak) selama ±150 hari terakhir, untuk grafik tren, laporan, dan ekspor (M4).
+     * Acak tetapi selalu sama (mt_srand). Setiap tiket mengikuti alur PRD 4.5 dan aturan yang dicek DatabaseSeederTest:
+     * kategori leaf + audiens cocok, handler punya spesialisasi kelompoknya, Selesai punya bukti, Ditolak punya alasan.
+     */
+    private function history(int $facultyId, string $code, Carbon $now, int $adminId): void
+    {
+        mt_srand($code === 'FITK' ? 2026 : 2027);
+
+        $user = fn (string $email) => DB::table('users')->where('email', $email)->value('id');
+        $reporters = [
+            'mahasiswa' => array_map($user, ['siti.aminah@uinssc.test', 'rizky.pratama@uinssc.test', 'nurul.hidayah@uinssc.test', 'fajar.ramadhan@uinssc.test']),
+            'dosen' => array_map($user, ['hendra.saputra@uinssc.test', 'lina.marlina@uinssc.test']),
+            'alumni' => array_map($user, ['yusuf.alumni2022@uinssc.test']),
+        ];
+
+        // [kategori leaf, jenis pelapor yang boleh, email staff penangan, bobot (seberapa sering), contoh judul]
+        $templates = $code === 'FITK' ? [
+            ['Nilai belum muncul', ['mahasiswa'], 'staff.akademik.fitk@uinssc.test', 6, ['Nilai {mk} belum muncul di portal', 'Nilai UAS {mk} masih kosong']],
+            ['KRS belum di-ACC', ['mahasiswa'], 'staff.akademik.fitk@uinssc.test', 5, ['KRS belum disetujui Dosen PA', 'KRS ditolak sistem padahal SKS cukup']],
+            ['Jadwal mata kuliah', ['mahasiswa'], 'staff.akademik.fitk@uinssc.test', 3, ['Jadwal {mk} bentrok', 'Ruang kuliah {mk} belum ada']],
+            ['Pelayanan Administrasi & Birokrasi', ['mahasiswa', 'dosen'], 'staff.umum.fitk@uinssc.test', 4, ['Surat keterangan aktif kuliah belum terbit', 'Legalisir ijazah lambat', 'Surat tugas belum ditandatangani']],
+            ['Keuangan & UKT', ['mahasiswa'], 'staff.umum.fitk@uinssc.test', 4, ['UKT sudah dibayar tapi belum terverifikasi', 'Pengajuan keringanan UKT belum dijawab']],
+            ['Fasilitas, Sarana & Prasarana', ['mahasiswa', 'dosen'], 'staff.umum.fitk@uinssc.test', 4, ['AC ruang {ruang} mati', 'Proyektor ruang {ruang} rusak', 'Toilet lantai 2 tidak ada air']],
+            ['Akun, Jaringan & IT', ['mahasiswa', 'dosen'], 'staff.umum.fitk@uinssc.test', 5, ['Tidak bisa login portal akademik', 'Wi-Fi gedung FITK putus-putus', 'Email kampus tidak bisa menerima pesan']],
+            ['Jadwal Mengajar', ['dosen'], 'staff.akademik.fitk@uinssc.test', 2, ['Jadwal mengajar {mk} bentrok', 'Perubahan ruang mengajar belum diumumkan']],
+            ['Peminjaman ruang microteaching', ['mahasiswa', 'dosen'], 'staff.umum.fitk@uinssc.test', 2, ['Peminjaman ruang microteaching belum dikonfirmasi']],
+            ['Transkrip Nilai', ['alumni'], 'staff.alumni.fitk@uinssc.test', 2, ['Permohonan legalisir transkrip', 'Nilai {mk} di transkrip tidak sesuai KHS']],
+            ['Kesalahan Data PDDIKTI', ['alumni'], 'staff.alumni.fitk@uinssc.test', 1, ['Tanggal lahir di PDDIKTI salah']],
+            ['Integritas Dosen', ['mahasiswa'], 'staff.dekanat.fitk@uinssc.test', 1, ['Dosen {mk} sering terlambat tanpa kabar']],
+        ] : [
+            ['Pelayanan Administrasi & Birokrasi', ['mahasiswa', 'dosen'], 'staff.umum.febi@uinssc.test', 3, ['Surat rekomendasi beasiswa belum terbit', 'Legalisir ijazah lambat']],
+            ['Akun, Jaringan & IT', ['mahasiswa', 'dosen'], 'staff.umum.febi@uinssc.test', 3, ['Tidak bisa login SSO dari lab FEBI', 'Wi-Fi gedung FEBI mati']],
+        ];
+        $total = $code === 'FITK' ? 80 : 14;
+
+        $mk = ['Statistika', 'Ilmu Pendidikan', 'Bahasa Arab', 'Tafsir Tarbawi', 'Psikologi Belajar', 'Metodologi Penelitian'];
+        $ruang = ['2.01', '2.05', '3.02', '3.07', '4.01'];
+        $reasons = [
+            'Salah fakultas/kategori: layanan ini ditangani oleh Biro Akademik Rektorat.',
+            'Tiket ganda (sudah dilaporkan di tiket lain): sudah dilaporkan di tiket sebelumnya.',
+            'Data pelapor tidak valid: NIM tidak ditemukan di data akademik.',
+            'Di luar layanan helpdesk fakultas: silakan hubungi bank penerima pembayaran.',
+        ];
+
+        $weighted = [];
+        foreach ($templates as $template) {
+            $weighted = array_merge($weighted, array_fill(0, $template[3], $template));
+        }
+
+        for ($i = 0; $i < $total; $i++) {
+            [$leafName, $types, $staffEmail, , $titles] = $weighted[mt_rand(0, count($weighted) - 1)];
+            $leaf = DB::table('categories')->where('faculty_id', $facultyId)->where('name', $leafName)->first(['id', 'sla_hours']);
+            $type = $types[mt_rand(0, count($types) - 1)];
+            $reporter = $reporters[$type][mt_rand(0, count($reporters[$type]) - 1)];
+            $staffId = $user($staffEmail);
+
+            // Lebih banyak tiket di bulan-bulan terakhir: hari ke belakang = 2..150, condong ke yang baru.
+            $daysAgo = 2 + (int) floor(148 * (mt_rand(0, 1000) / 1000) ** 1.4);
+            $created = $now->copy()->subDays($daysAgo)->setTime(mt_rand(7, 16), mt_rand(0, 59));
+            $sla = (int) $leaf->sla_hours;
+
+            // Lama di antrean: biasanya cepat, kadang lama (bahan Time-to-Claim & Claim Rate).
+            $claimMinutes = mt_rand(1, 10) <= 8 ? mt_rand(15, 6 * 60) : mt_rand(8 * 60, 40 * 60);
+            $assigned = $created->copy()->addMinutes($claimMinutes);
+            $responded = $assigned->copy()->addMinutes(mt_rand(10, 180));
+
+            $rejected = mt_rand(1, 100) <= 12;
+            // ±80% selesai dalam SLA, sisanya terlambat 10–60% dari target.
+            $resolveHours = mt_rand(1, 100) <= 80 ? mt_rand(20, 95) / 100 * $sla : $sla * mt_rand(110, 160) / 100;
+            $resolved = $created->copy()->addMinutes((int) round($resolveHours * 60));
+            if ($resolved->lessThanOrEqualTo($responded)) {
+                $resolved = $responded->copy()->addMinutes(30);
+            }
+            if ($resolved->greaterThan($now->copy()->subHour())) {
+                continue; // belum "selesai" di masa lalu -> lewati, data riwayat harus sudah ditutup
+            }
+
+            $title = str_replace(['{mk}', '{ruang}'], [$mk[mt_rand(0, count($mk) - 1)], $ruang[mt_rand(0, count($ruang) - 1)]], $titles[mt_rand(0, count($titles) - 1)]);
+            $ticketId = $this->ticket([
+                'faculty_id' => $facultyId, 'title' => $title,
+                'description' => 'Data riwayat contoh untuk laporan: '.$title.'.',
+                'status' => $rejected ? 'ditolak' : 'selesai',
+                'rejection_reason' => $rejected ? $reasons[mt_rand(0, count($reasons) - 1)] : null,
+                'reporter_id' => $reporter, 'reporter_type' => $type,
+                'handler_id' => $staffId, 'assigned_at' => $assigned,
+                'first_responded_at' => $responded, 'resolved_at' => $resolved,
+                'category_id' => $leaf->id, 'sla_target_hours' => $sla,
+            ], $created);
+
+            DB::table('comments')->insert([
+                'ticket_id' => $ticketId, 'user_id' => $staffId, 'is_internal_note' => false,
+                'body' => $rejected ? 'Mohon maaf, tiket ini tidak dapat kami proses. Alasan ada di detail tiket.' : 'Baik, sedang kami tindak lanjuti.',
+                'created_at' => $responded,
+            ]);
+
+            if (! $rejected) {
+                $this->proof($ticketId, $staffId, 'bukti-'.($i + 1).'.'.(mt_rand(0, 1) ? 'pdf' : 'png'), $resolved);
+                if (mt_rand(1, 100) <= 65) { // tidak semua pelapor memberi rating
+                    $score = [2, 3, 4, 4, 4, 5, 5, 5, 5, 3][mt_rand(0, 9)];
+                    DB::table('ratings')->insert([
+                        'ticket_id' => $ticketId, 'user_id' => $reporter, 'score' => $score,
+                        'comment' => $score >= 4 ? 'Terima kasih, cepat ditangani.' : ($score === 3 ? 'Cukup, tapi agak lama.' : 'Terlalu lama menunggu.'),
+                        'created_at' => $resolved->copy()->addHours(mt_rand(1, 20))->min($now),
+                    ]);
+                }
+            }
+
+            // Tiket yang lama di antrean (> 75% SLA) pernah di-Ping admin sebelum diambil (sudah dibaca).
+            if ($claimMinutes > $sla * 60 * 0.75) {
+                $this->ping($ticketId, $adminId, [$staffId], 'Tiket ini sudah lama menunggu, mohon segera diambil.', $created->copy()->addMinutes((int) ($claimMinutes * 0.9)), true);
+            }
+        }
+    }
+
+    /**
+     * Ping demo: satu baris ping_logs + satu notifikasi in-app per staff (sama seperti PingService).
+     *
+     * @param  list<int>  $staffIds
+     */
+    private function ping(int $ticketId, int $adminId, array $staffIds, string $message, Carbon $at, bool $read): void
+    {
+        $this->pendingPings[] = [$ticketId, $adminId, $staffIds, $message, $at, $read];
+    }
+
+    private function writePing(int $ticketId, int $adminId, array $staffIds, string $message, Carbon $at, bool $read): void
+    {
+        $ticket = DB::table('tickets')->where('id', $ticketId)->first(['ticket_number', 'title', 'faculty_id', 'sla_target_hours']);
+        $code = DB::table('faculties')->where('id', $ticket->faculty_id)->value('code');
+
+        foreach ($staffIds as $staffId) {
+            DB::table('ping_logs')->insert([
+                'ticket_id' => $ticketId, 'admin_id' => $adminId, 'staff_id' => $staffId, 'message' => $message, 'created_at' => $at,
+            ]);
+            DB::table('notifications')->insert([
+                'user_id' => $staffId, 'ticket_id' => $ticketId, 'type' => 'in_app',
+                'subject' => "Ping dari Admin {$code}: {$ticket->ticket_number}",
+                'message' => "{$ticket->ticket_number} — {$ticket->title}\nPesan Admin: {$message}",
+                'is_read' => $read, 'sent_at' => $at, 'read_at' => $read ? $at->copy()->addHour() : null,
+            ]);
+        }
+    }
+
+    /**
+     * Nomor tiket TKT-YYYYMM-XXXX diurutkan ulang per bulan sesuai created_at, karena tiket riwayat dibuat
+     * setelah tiket contoh utama. Dua langkah (nomor sementara dulu) supaya kolom UNIQUE tidak bentrok.
+     */
+    private function renumber(): void
+    {
+        $tickets = DB::table('tickets')->orderBy('created_at')->orderBy('id')->get(['id', 'created_at']);
+
+        foreach ($tickets as $ticket) {
+            DB::table('tickets')->where('id', $ticket->id)->update(['ticket_number' => 'TMP-'.$ticket->id]);
+        }
+
+        $sequence = [];
+        foreach ($tickets as $ticket) {
+            $month = Carbon::parse($ticket->created_at)->format('Ym');
+            $sequence[$month] = ($sequence[$month] ?? 0) + 1;
+            DB::table('tickets')->where('id', $ticket->id)->update([
+                'ticket_number' => 'TKT-'.$month.'-'.str_pad((string) $sequence[$month], 4, '0', STR_PAD_LEFT),
+            ]);
+        }
     }
 
     /** Insert tiket dengan nomor TKT-YYYYMM-XXXX sesuai bulan created_at. */

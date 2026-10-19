@@ -8,6 +8,8 @@ use App\Enums\UserType;
 use App\Models\Attachment;
 use App\Models\Category;
 use App\Models\Faculty;
+use App\Models\Notification;
+use App\Models\PingLog;
 use App\Models\Rating;
 use App\Models\Ticket;
 use App\Models\User;
@@ -46,8 +48,9 @@ class DatabaseSeederTest extends TestCase
         $this->assertSame(6, User::where('role', Role::Admin)->count());
         $this->assertSame(6, User::where('role', Role::Staff)->count());
         $this->assertSame(1, User::where('role', Role::Staff)->where('is_active', false)->count());
-        $this->assertSame(4, User::where('role', Role::EndUser)->count());
-        $this->assertSame(12, Ticket::count());
+        $this->assertSame(11, User::where('role', Role::EndUser)->count()); // 4 akun demo + 7 pelapor data laporan (M4)
+        $this->assertSame(13, Ticket::where('description', 'not like', 'Data riwayat contoh%')->count()); // tiket contoh utama
+        $this->assertGreaterThan(60, Ticket::count()); // + riwayat beberapa bulan (M4)
         $this->assertSame(5, Rating::first()->score);
     }
 
@@ -62,7 +65,9 @@ class DatabaseSeederTest extends TestCase
             ['Nilai Bahasa Arab belum keluar', 'Jadwal mengajar Kamis bentrok dengan rapat prodi', 'KRS saya belum di-ACC Dosen PA'],
             Ticket::forStaff($staffAkademik)->where('status', TicketStatus::Menunggu)->orderBy('created_at')->pluck('title')->all()
         );
-        $this->assertSame(2, Ticket::forStaff($staffAlumni)->count()); // transkrip + PDDIKTI
+        // Antrean staff alumni: 1 tiket legalisir transkrip yang sudah melewati SLA (M4).
+        $this->assertSame(['Legalisir transkrip untuk melamar CPNS belum diproses'],
+            Ticket::forStaff($staffAlumni)->where('status', TicketStatus::Menunggu)->pluck('title')->all());
     }
 
     public function test_demo_ticket_relations_can_be_read_through_models(): void
@@ -73,7 +78,7 @@ class DatabaseSeederTest extends TestCase
         $this->assertSame(1, $inProgress->comments()->where('is_internal_note', true)->count());
         $this->assertSame('staff.umum.fitk@uinssc.test', $inProgress->handler->email);
         $this->assertSame('admin.fitk@uinssc.test', $inProgress->pingLogs->first()->admin->email);
-        $this->assertSame(1, $inProgress->handler->inAppNotifications()->count());
+        $this->assertSame(1, $inProgress->handler->inAppNotifications()->where('ticket_id', $inProgress->id)->count());
 
         // Tiket demo "selesai": bukti penyelesaian + rating dari pelapor.
         $done = Ticket::where('title', 'Nilai Statistika di transkrip tidak sesuai')->firstOrFail();
@@ -157,5 +162,38 @@ class DatabaseSeederTest extends TestCase
         $this->assertTrue($mahasiswa->reportedTickets()->where('status', TicketStatus::Selesai)->doesntHave('rating')->exists());
         $this->assertTrue(Ticket::where('status', TicketStatus::Selesai)->get()->contains(fn (Ticket $t) => $t->slaMet() === false));
         $this->assertTrue(Ticket::where('status', TicketStatus::Selesai)->get()->contains(fn (Ticket $t) => $t->slaMet() === true));
+    }
+
+    public function test_demo_data_covers_m4_screens(): void
+    {
+        $fitk = Faculty::where('code', 'FITK')->value('id');
+        $febi = Faculty::where('code', 'FEBI')->value('id');
+
+        // Riwayat beberapa bulan untuk grafik & laporan, di FITK dan FEBI.
+        $months = Ticket::where('faculty_id', $fitk)->get()->map(fn (Ticket $t) => $t->created_at->format('Y-m'))->unique();
+        $this->assertGreaterThanOrEqual(4, $months->count());
+        $this->assertGreaterThan(5, Ticket::where('faculty_id', $febi)->count());
+
+        // Ada tiket Selesai yang sesuai SLA dan yang melewati SLA, ada yang Ditolak, rating bervariasi.
+        $closed = Ticket::where('faculty_id', $fitk)->closed()->get();
+        $this->assertTrue($closed->contains(fn (Ticket $t) => $t->slaMet() === true));
+        $this->assertTrue($closed->contains(fn (Ticket $t) => $t->slaMet() === false));
+        $this->assertTrue($closed->contains(fn (Ticket $t) => $t->status === TicketStatus::Ditolak));
+        $this->assertGreaterThan(1, Rating::distinct()->count('score'));
+
+        // Dashboard admin: minimal 2 tiket menganggur (Menunggu + lewat SLA), beberapa Ping, dan teguran belum dibaca.
+        $idle = Ticket::where('faculty_id', $fitk)->where('status', TicketStatus::Menunggu)->get()->filter(fn (Ticket $t) => $t->slaState() === 'overdue');
+        $this->assertGreaterThanOrEqual(2, $idle->count());
+        $this->assertGreaterThanOrEqual(5, PingLog::count());
+        $akademik = User::where('email', 'staff.akademik.fitk@uinssc.test')->first();
+        $this->assertSame(1, $akademik->inAppNotifications()->where('is_read', false)->count());
+
+        // Setiap Ping demo tercatat juga sebagai notifikasi in-app untuk staff penerimanya.
+        $this->assertSame(PingLog::count(), Notification::where('type', 'in_app')->count());
+
+        // Nomor tiket tetap urut sesuai tanggal dibuat dalam setiap bulan.
+        foreach (Ticket::orderBy('created_at')->orderBy('id')->get()->groupBy(fn (Ticket $t) => $t->created_at->format('Ym')) as $tickets) {
+            $this->assertSame(range(1, $tickets->count()), $tickets->map(fn (Ticket $t) => (int) substr($t->ticket_number, -4))->all());
+        }
     }
 }

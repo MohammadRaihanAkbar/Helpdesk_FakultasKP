@@ -15,6 +15,8 @@ use Illuminate\Support\Facades\Hash;
  *  - 5 Staff FITK + spesialisasinya (tabel staff_specialties), 1 di antaranya nonaktif
  *  - 1 Staff FEBI (untuk mencoba batas lintas fakultas)
  *  - 4 pelapor: mahasiswa, dosen, alumni lulus 2023 (SSO), alumni lulus 2019 (hidden link)
+ *  - 7 pelapor tambahan (M4) sebagai pemilik tiket riwayat beberapa bulan untuk grafik & laporan Admin.
+ *    Mereka tidak ada di simulasi SSO, jadi tidak dipakai untuk login.
  *
  * Catatan: di production, mahasiswa/dosen/alumni >= 2022 login lewat SSO, jadi password
  * mereka tidak dipakai. Di sini tetap diisi supaya bisa dites login lokal.
@@ -112,6 +114,24 @@ class UserSeeder extends Seeder
             'nim' => '1510110023', 'program_studi' => 'Pendidikan Agama Islam',
             'origin_faculty_id' => $fac['FITK'], 'password' => $password,
         ]);
+
+        // ---------- 5. Pelapor tambahan untuk data laporan (M4) ----------
+        // Pemilik tiket riwayat di DemoTicketSeeder, supaya data akun demo di atas (Ahmad, Budi, ...) tidak berubah.
+        $extra = [
+            ['Siti Aminah', 'siti.aminah@uinssc.test', 'mahasiswa', ['nim' => '2210110002', 'program_studi' => 'Pendidikan Agama Islam']],
+            ['Rizky Pratama', 'rizky.pratama@uinssc.test', 'mahasiswa', ['nim' => '2210120015', 'program_studi' => 'Tadris Matematika']],
+            ['Nurul Hidayah', 'nurul.hidayah@uinssc.test', 'mahasiswa', ['nim' => '2310130021', 'program_studi' => 'Pendidikan Bahasa Inggris']],
+            ['Fajar Ramadhan', 'fajar.ramadhan@uinssc.test', 'mahasiswa', ['nim' => '2310110034', 'program_studi' => 'Pendidikan Guru MI']],
+            ['Dr. Hendra Saputra', 'hendra.saputra@uinssc.test', 'dosen', ['nidn' => '0415078502', 'program_studi' => 'Tadris Matematika']],
+            ['Lina Marlina, M.Pd.', 'lina.marlina@uinssc.test', 'dosen', ['nidn' => '0402119003', 'program_studi' => 'Pendidikan Bahasa Inggris']],
+            ['Yusuf Alumni', 'yusuf.alumni2022@uinssc.test', 'alumni', ['nim' => '1810110077', 'program_studi' => 'Pendidikan Agama Islam', 'graduation_year' => 2022]],
+        ];
+        foreach ($extra as [$name, $email, $type, $identity]) {
+            $this->upsertUser([
+                'name' => $name, 'email' => $email, 'role' => 'end_user', 'user_type' => $type,
+                'origin_faculty_id' => $fac['FITK'], 'password' => $password,
+            ] + $identity);
+        }
     }
 
     /** Insert user baru atau update jika email sudah ada. Mengembalikan id user. */

@@ -80,11 +80,12 @@ class DosenLoginTest extends TestCase
     public function test_seeded_dosen_logging_in_with_nip_does_not_get_a_second_account(): void
     {
         $this->seed();
+        $dosenBefore = User::where('user_type', UserType::Dosen)->count(); // seeder M4 menambah dosen data laporan
 
         $this->post('/login', ['login' => self::BUDI_NIP, 'password' => 'password'])->assertRedirect('/dashboard');
 
         $this->assertSame('dosen@uinssc.test', auth()->user()->email);
-        $this->assertSame(1, User::where('user_type', UserType::Dosen)->count());
+        $this->assertSame($dosenBefore, User::where('user_type', UserType::Dosen)->count());
     }
 
     public function test_fake_dosen_without_nidn_is_stored_with_nip(): void
