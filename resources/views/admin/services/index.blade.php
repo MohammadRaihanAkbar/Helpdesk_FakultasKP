@@ -11,7 +11,7 @@
     </x-page-header>
 
     <x-ui.card class="p-0! md:p-0!">
-        <div class="hidden grid-cols-[minmax(0,1fr)_9rem_7rem_9rem_auto] gap-4 border-b border-line bg-sunken/60 px-5 py-3 text-xs font-extrabold tracking-wide text-muted uppercase md:grid">
+        <div class="hidden grid-cols-[minmax(0,1fr)_8rem_6.5rem_8.5rem_19rem] gap-4 border-b border-line bg-sunken/60 px-5 py-3 text-xs font-extrabold tracking-wide text-muted uppercase lg:grid">
             <span>Kategori</span><span>Audiens</span><span>SLA</span><span>Status</span><span class="text-right">Aksi</span>
         </div>
 

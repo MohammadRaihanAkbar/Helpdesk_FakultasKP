@@ -9,7 +9,7 @@
         </x-slot:action>
     </x-page-header>
 
-    <div class="grid gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
+    <div class="grid gap-4 2xl:grid-cols-[minmax(0,1fr)_22rem]">
         <x-ui.card class="p-0! md:p-0!">
             @if ($staff->isEmpty())
                 <div class="p-5">
@@ -19,7 +19,7 @@
                 </div>
             @else
                 <div class="overflow-x-auto">
-                    <table class="w-full min-w-[46rem] text-left text-sm">
+                    <table class="w-full min-w-[44rem] text-left text-sm">
                         <thead class="border-b border-line bg-sunken/60 text-xs font-extrabold tracking-wide text-muted uppercase">
                             <tr>
                                 <th scope="col" class="px-5 py-3">Staff</th>

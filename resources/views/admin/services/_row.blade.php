@@ -11,13 +11,13 @@
 @endphp
 
 <div @class([
-    'grid gap-3 px-4 py-3.5 md:grid-cols-[minmax(0,1fr)_9rem_7rem_9rem_auto] md:items-center md:gap-4 md:px-5',
+    'grid gap-3 px-4 py-3.5 lg:grid-cols-[minmax(0,1fr)_8rem_6.5rem_8.5rem_19rem] lg:items-center lg:gap-4 lg:px-5',
     'bg-sunken/40' => $isChild,
     'opacity-70' => ! $category->is_active || $followsParentOff,
 ])>
     {{-- Kategori --}}
     <div class="min-w-0">
-        <div @class(['flex flex-wrap items-center gap-2', 'pl-5 md:pl-7' => $isChild])>
+        <div @class(['flex flex-wrap items-center gap-2', 'pl-5 lg:pl-7' => $isChild])>
             @if ($isChild)
                 <span class="text-line-strong" aria-hidden="true">└</span>
                 <span class="sr-only">Jenis Masalah:</span>
@@ -33,13 +33,19 @@
             @endif
         </div>
         @if ($category->description)
-            <p @class(['mt-1 text-sm text-muted', 'pl-5 md:pl-7' => $isChild])>{{ $category->description }}</p>
+            <p @class(['mt-1 text-sm text-muted', 'pl-5 lg:pl-7' => $isChild])>{{ $category->description }}</p>
+        @endif
+        @if (! $isChild && $canHaveChildren)
+            <a href="{{ route('admin.services.create', ['parent_id' => $category->id]) }}"
+               class="mt-1 -ml-2 inline-flex min-h-10 items-center gap-1.5 rounded-control px-2 text-sm font-bold text-primary hover:bg-primary-soft">
+                <x-icon name="plus" class="size-4" /> Tambah Jenis Masalah<span class="sr-only"> di {{ $category->name }}</span>
+            </a>
         @endif
     </div>
 
     {{-- Audiens: hanya di kelompok (anak mewarisi) --}}
     <div class="text-sm">
-        <span class="text-xs font-bold text-muted uppercase md:hidden">Audiens: </span>
+        <span class="text-xs font-bold text-muted uppercase lg:hidden">Audiens: </span>
         @if ($isChild)
             <span class="text-muted">ikut kelompok</span>
         @else
@@ -55,7 +61,7 @@
 
     {{-- SLA --}}
     <div class="text-sm">
-        <span class="text-xs font-bold text-muted uppercase md:hidden">SLA: </span>
+        <span class="text-xs font-bold text-muted uppercase lg:hidden">SLA: </span>
         @if ($hasChildren)
             <span class="text-muted" title="Nilai awal untuk Jenis Masalah baru">default {{ $category->sla_hours }} jam</span>
         @else
@@ -78,7 +84,7 @@
     </div>
 
     {{-- Aksi --}}
-    <div class="flex flex-wrap items-center gap-2 md:justify-end">
+    <div class="flex flex-wrap items-center gap-2 lg:justify-end">
         <a href="{{ route('admin.services.edit', $category) }}"
            class="inline-flex min-h-10 items-center gap-1.5 rounded-control border border-line bg-surface px-3 text-sm font-bold text-ink shadow-sm hover:bg-sunken">
             <x-icon name="pencil" class="size-4" /> Ubah<span class="sr-only"> {{ $category->name }}</span>
@@ -124,11 +130,5 @@
             @endif
         @endif
 
-        @if (! $isChild && $canHaveChildren)
-            <a href="{{ route('admin.services.create', ['parent_id' => $category->id]) }}"
-               class="inline-flex min-h-10 items-center gap-1.5 rounded-control px-3 text-sm font-bold text-primary hover:bg-primary-soft">
-                <x-icon name="plus" class="size-4" /> Jenis Masalah
-            </a>
-        @endif
     </div>
 </div>
