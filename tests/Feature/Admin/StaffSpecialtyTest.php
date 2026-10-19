@@ -148,4 +148,13 @@ class StaffSpecialtyTest extends TestCase
             ->assertSee('Kelompok tanpa Staff (8)')
             ->assertSee('2 tiket menunggu');
     }
+
+    public function test_admin_dashboard_links_to_staff_and_services_and_shows_coverage(): void
+    {
+        $this->actingAs($this->admin)->get('/admin/dashboard')
+            ->assertOk()
+            ->assertSee(route('admin.staff.index'))
+            ->assertSee(route('admin.services.index'))
+            ->assertSee('Kelompok tanpa Staff (9)');
+    }
 }

@@ -12,7 +12,8 @@ use Illuminate\Support\Facades\Hash;
  * Isinya:
  *  - 1 Super Admin
  *  - 1 Admin Fakultas per fakultas (6 akun)
- *  - 3 Staff FITK + spesialisasinya (tabel staff_specialties)
+ *  - 5 Staff FITK + spesialisasinya (tabel staff_specialties), 1 di antaranya nonaktif
+ *  - 1 Staff FEBI (untuk mencoba batas lintas fakultas)
  *  - 4 pelapor: mahasiswa, dosen, alumni lulus 2023 (SSO), alumni lulus 2019 (hidden link)
  *
  * Catatan: di production, mahasiswa/dosen/alumni >= 2022 login lewat SSO, jadi password
@@ -39,29 +40,39 @@ class UserSeeder extends Seeder
             ]);
         }
 
-        // ---------- 3. Staff FITK + spesialisasi ----------
-        // Spesialisasi = Kelompok Layanan (parent_id NULL) yang boleh dilihat antreannya
+        // ---------- 3. Staff + spesialisasi ----------
+        // Spesialisasi = Kelompok Layanan (parent_id NULL) yang boleh dilihat antreannya.
+        // "Integritas Dosen" (sensitif) sengaja hanya dipegang staff Dekanat (PRD 2.7 aturan 10).
         $staffList = [
-            'staff.akademik.fitk@uinssc.test' => ['Staff Akademik FITK', [
-                'Sistem Akademik & Perkuliahan', 'Jadwal Mengajar', 'Integritas Dosen',
+            'staff.akademik.fitk@uinssc.test' => ['Staff Akademik FITK', 'FITK', true, [
+                'Sistem Akademik & Perkuliahan', 'Jadwal Mengajar',
             ]],
-            'staff.umum.fitk@uinssc.test' => ['Staff Umum FITK', [
+            'staff.umum.fitk@uinssc.test' => ['Staff Umum FITK', 'FITK', true, [
                 'Pelayanan Administrasi & Birokrasi', 'Keuangan & UKT',
-                'Fasilitas, Sarana & Prasarana', 'Akun, Jaringan & IT',
+                'Fasilitas, Sarana & Prasarana', 'Akun, Jaringan & IT', 'Laboratorium Microteaching',
             ]],
-            'staff.alumni.fitk@uinssc.test' => ['Staff Layanan Alumni FITK', [
+            'staff.alumni.fitk@uinssc.test' => ['Staff Layanan Alumni FITK', 'FITK', true, [
                 'Transkrip Nilai', 'Kesalahan Data PDDIKTI',
+            ]],
+            'staff.dekanat.fitk@uinssc.test' => ['Staff Dekanat FITK', 'FITK', true, [
+                'Integritas Dosen',
+            ]],
+            'staff.cuti.fitk@uinssc.test' => ['Staff Cuti FITK', 'FITK', false, [ // akun NONAKTIF: tidak bisa login
+                'Keuangan & UKT',
+            ]],
+            'staff.umum.febi@uinssc.test' => ['Staff Umum FEBI', 'FEBI', true, [
+                'Pelayanan Administrasi & Birokrasi', 'Akun, Jaringan & IT',
             ]],
         ];
 
-        foreach ($staffList as $email => [$name, $groups]) {
+        foreach ($staffList as $email => [$name, $code, $active, $groups]) {
             $staffId = $this->upsertUser([
-                'name' => $name, 'email' => $email,
-                'role' => 'staff', 'faculty_id' => $fac['FITK'], 'password' => $password,
+                'name' => $name, 'email' => $email, 'is_active' => $active,
+                'role' => 'staff', 'faculty_id' => $fac[$code], 'password' => $password,
             ]);
 
             $categoryIds = DB::table('categories')
-                ->where('faculty_id', $fac['FITK'])
+                ->where('faculty_id', $fac[$code])
                 ->whereNull('parent_id')          // hanya Kelompok Layanan
                 ->whereIn('name', $groups)
                 ->pluck('id');

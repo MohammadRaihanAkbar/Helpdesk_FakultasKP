@@ -5,12 +5,15 @@ namespace Tests\Feature;
 use App\Enums\Role;
 use App\Enums\TicketStatus;
 use App\Enums\UserType;
+use App\Models\Attachment;
 use App\Models\Category;
 use App\Models\Faculty;
 use App\Models\Rating;
 use App\Models\Ticket;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 /**
@@ -25,6 +28,9 @@ class DatabaseSeederTest extends TestCase
     {
         parent::setUp();
 
+        // Berkas demo (lampiran & bukti) ditulis ke disk palsu, bukan storage/app/private sungguhan.
+        Storage::fake('local');
+
         // Jalankan DatabaseSeeder sebelum setiap test di class ini.
         // (Properti $seed = true hanya berlaku saat migrasi PERTAMA dalam satu proses test,
         // jadi untuk SQLite in-memory lebih aman memanggil seed() langsung.)
@@ -34,12 +40,14 @@ class DatabaseSeederTest extends TestCase
     public function test_seeders_create_the_demo_data(): void
     {
         $this->assertSame(6, Faculty::count());
-        $this->assertSame(72, Category::count());
+        $this->assertSame(75, Category::count()); // 72 standar + 3 tambahan contoh FITK
+        $this->assertSame(3, Category::where('is_standard', false)->count());
         $this->assertSame(1, User::where('role', Role::SuperAdmin)->count());
         $this->assertSame(6, User::where('role', Role::Admin)->count());
-        $this->assertSame(3, User::where('role', Role::Staff)->count());
+        $this->assertSame(6, User::where('role', Role::Staff)->count());
+        $this->assertSame(1, User::where('role', Role::Staff)->where('is_active', false)->count());
         $this->assertSame(4, User::where('role', Role::EndUser)->count());
-        $this->assertSame(4, Ticket::count());
+        $this->assertSame(8, Ticket::count());
         $this->assertSame(5, Rating::first()->score);
     }
 
@@ -48,15 +56,15 @@ class DatabaseSeederTest extends TestCase
         $staffAkademik = User::where('email', 'staff.akademik.fitk@uinssc.test')->first();
         $staffAlumni = User::where('email', 'staff.alumni.fitk@uinssc.test')->first();
 
-        // Tiket demo "KRS belum di-ACC" masuk antrean staff akademik, bukan staff alumni.
-        $this->assertSame(['KRS saya belum di-ACC Dosen PA'], Ticket::forStaff($staffAkademik)->pluck('title')->all());
+        // Tiket demo "KRS belum di-ACC" (menunggu) masuk antrean staff akademik, bukan staff alumni.
+        $this->assertSame(['KRS saya belum di-ACC Dosen PA'], Ticket::forStaff($staffAkademik)->where('status', TicketStatus::Menunggu)->pluck('title')->all());
         $this->assertSame(2, Ticket::forStaff($staffAlumni)->count()); // transkrip + PDDIKTI
     }
 
     public function test_demo_ticket_relations_can_be_read_through_models(): void
     {
         // Tiket demo "diproses": punya 1 pesan publik + 1 internal note, 1 Ping, 1 notifikasi in-app.
-        $inProgress = Ticket::where('status', TicketStatus::Diproses)->firstOrFail();
+        $inProgress = Ticket::where('title', 'Wi-Fi ruang dosen lantai 2 mati')->firstOrFail();
         $this->assertSame(2, $inProgress->comments()->count());
         $this->assertSame(1, $inProgress->comments()->where('is_internal_note', true)->count());
         $this->assertSame('staff.umum.fitk@uinssc.test', $inProgress->handler->email);
@@ -64,15 +72,53 @@ class DatabaseSeederTest extends TestCase
         $this->assertSame(1, $inProgress->handler->inAppNotifications()->count());
 
         // Tiket demo "selesai": bukti penyelesaian + rating dari pelapor.
-        $done = Ticket::where('status', TicketStatus::Selesai)->firstOrFail();
+        $done = Ticket::where('title', 'Nilai Statistika di transkrip tidak sesuai')->firstOrFail();
         $this->assertSame('application/pdf', $done->resolutionProofs->first()->mime_type);
         $this->assertTrue($done->rating->user->is($done->reporter));
         $this->assertSame(UserType::Alumni, $done->reporter_type);
 
         // Tiket demo "menunggu": lampiran form awal, kategori leaf di bawah "Sistem Akademik & Perkuliahan".
-        $waiting = Ticket::where('status', TicketStatus::Menunggu)->firstOrFail();
+        $waiting = Ticket::where('title', 'KRS saya belum di-ACC Dosen PA')->firstOrFail();
         $this->assertSame(1, $waiting->attachments()->count());
         $this->assertSame('Sistem Akademik & Perkuliahan', $waiting->category->group()->name);
         $this->assertNull($waiting->handler);
+    }
+
+    public function test_demo_tickets_follow_the_business_rules(): void
+    {
+        foreach (Ticket::with('category.parent', 'reporter', 'handler')->get() as $ticket) {
+            $label = $ticket->ticket_number;
+
+            $this->assertTrue($ticket->category->isLeaf(), "{$label}: kategori harus leaf");
+            $this->assertTrue($ticket->category->isVisibleTo($ticket->reporter_type), "{$label}: audiens cocok");
+            $this->assertSame($ticket->faculty_id, $ticket->category->faculty_id, "{$label}: fakultas cocok");
+            $this->assertSame($ticket->reporter->user_type, $ticket->reporter_type, "{$label}: snapshot jenis pelapor");
+            $this->assertSame('TKT-'.$ticket->created_at->format('Ym'), substr($ticket->ticket_number, 0, 10), "{$label}: bulan nomor");
+            $this->assertSame($ticket->status->isOpen(), $ticket->resolved_at === null, "{$label}: resolved_at");
+
+            if ($ticket->handler) {
+                $this->assertTrue(Ticket::forStaff($ticket->handler)->whereKey($ticket->id)->exists(), "{$label}: handler punya spesialisasinya");
+            }
+        }
+
+        // Berkas demo benar-benar ada di disk privat, jadi tombol unduh tidak 404.
+        foreach (Attachment::all() as $attachment) {
+            Storage::disk('local')->assertExists($attachment->file_path);
+        }
+    }
+
+    public function test_demo_data_covers_m2_screens(): void
+    {
+        $mahasiswa = User::where('email', 'mahasiswa@uinssc.test')->first();
+
+        $this->assertSame(5, $mahasiswa->reportedTickets()->count());
+        $this->assertTrue($mahasiswa->reportedTickets()->get()->contains->isRejectedForWrongTarget()); // Buat Ulang Tiket
+        $this->assertSame(1, $mahasiswa->reportedTickets()->whereHas('comments.attachments')->count()); // balasan berlampiran
+
+        // Integritas Dosen hanya dipegang staff Dekanat; identitas pelapornya tidak terlihat oleh staff lain.
+        $sensitive = Ticket::whereHas('category', fn ($q) => $q->where('name', 'Integritas Dosen'))->firstOrFail();
+        $this->assertSame(['staff.dekanat.fitk@uinssc.test'], Category::find($sensitive->category_id)->staff()->pluck('email')->all());
+        $this->assertTrue(Gate::forUser(User::where('email', 'admin.fitk@uinssc.test')->first())->allows('viewReporterIdentity', $sensitive));
+        $this->assertFalse(Gate::forUser(User::where('email', 'staff.dekanat.fitk@uinssc.test')->first())->allows('viewReporterIdentity', $sensitive));
     }
 }
