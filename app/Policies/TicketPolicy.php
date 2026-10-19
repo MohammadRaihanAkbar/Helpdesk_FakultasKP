@@ -10,8 +10,9 @@ use App\Models\User;
  * Siapa boleh melihat / membalas sebuah tiket.
  *
  *   Pelapor         -> hanya tiket miliknya sendiri (PRD 2.1 "Lihat Tiket Orang Lain ❌")
- *   Staff           -> tiket yang ia tangani, atau tiket fakultasnya di Kelompok Layanan spesialisasinya
- *                      (sama dengan antrean, PRD 4.6) — halaman staff dibuat di M3
+ *   Staff           -> MELIHAT: tiket yang ia tangani, atau tiket fakultasnya di Kelompok Layanan spesialisasinya
+ *                      (sama dengan antrean, PRD 4.6). MENGAMBIL: tiket di spesialisasinya (claim).
+ *                      MEMBALAS & MENGUBAH STATUS: hanya staff penangan (handle) — staff lain hanya melihat.
  *   Admin Fakultas  -> semua tiket fakultasnya (monitoring), tetapi TIDAK ikut berdiskusi
  *   Super Admin     -> tidak menangani tiket sama sekali
  *
@@ -30,13 +31,38 @@ class TicketPolicy
     }
 
     /**
-     * Boleh mengirim pesan publik di thread: pelapor pemilik tiket dan Staff penangan (M3).
+     * Boleh mengirim pesan di thread: pelapor pemilik tiket dan Staff penangan.
      * Status tiket (harus masih terbuka) & batas 20 pesan dicek di CommentService.
      */
     public function reply(User $user, Ticket $ticket): bool
     {
         return ($user->isEndUser() && $ticket->reporter_id === $user->id)
             || $this->isHandler($user, $ticket);
+    }
+
+    /**
+     * Boleh menekan "Ambil Tiket" (US-07): staff AKTIF yang Kelompok Layanan tiketnya termasuk spesialisasinya.
+     * Status tiket sengaja TIDAK dicek di sini: staff yang kalah balapan tetap lolos policy, lalu
+     * TicketWorkflowService menjawab 409 TICKET_ALREADY_ASSIGNED (lebih jelas daripada 403).
+     */
+    public function claim(User $user, Ticket $ticket): bool
+    {
+        return $user->isStaff() && $user->is_active && $this->inStaffSpecialty($user, $ticket);
+    }
+
+    /**
+     * Boleh mengelola tiket (ubah status Selesai/Ditolak, kirim catatan internal): HANYA staff penangan.
+     * Admin Fakultas tidak menangani tiket (PRD 2.3), staff lain yang berspesialisasi sama hanya melihat.
+     */
+    public function handle(User $user, Ticket $ticket): bool
+    {
+        return $user->is_active && $this->isHandler($user, $ticket);
+    }
+
+    /** Rating CSAT (US-05): hanya pelapor pemilik tiket. Status Selesai & "sekali saja" dicek RatingService. */
+    public function rate(User $user, Ticket $ticket): bool
+    {
+        return $user->isEndUser() && $ticket->reporter_id === $user->id;
     }
 
     /** Catatan internal hanya terlihat oleh Staff & Admin Fakultas yang boleh melihat tiket (F-TKS-08). */

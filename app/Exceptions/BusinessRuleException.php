@@ -2,6 +2,7 @@
 
 namespace App\Exceptions;
 
+use App\Enums\TicketStatus;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -111,6 +112,57 @@ class BusinessRuleException extends RuntimeException
     public static function tooManyAttachments(int $max): self
     {
         return new self('TOO_MANY_ATTACHMENTS', "Lampiran maksimal {$max} berkas.", 422, 'attachments');
+    }
+
+    // ------------------------------------------------------------------
+    // Alur Staff (M3): ambil tiket, ubah status, rating
+    // ------------------------------------------------------------------
+
+    /** Dua staff menekan "Ambil Tiket" bersamaan: yang kalah mendapat 409 (PRD 9.3 PATCH assign). */
+    public static function ticketAlreadyAssigned(): self
+    {
+        return new self(
+            'TICKET_ALREADY_ASSIGNED',
+            'Tiket ini sudah diambil oleh staff lain. Silakan pilih tiket lain di antrean.',
+            409,
+        );
+    }
+
+    /** Transisi status di luar diagram PRD 4.5 (mundur, melompat, atau tiket sudah ditutup). */
+    public static function invalidStatusTransition(TicketStatus $from, TicketStatus $to): self
+    {
+        $hint = match ($from) {
+            TicketStatus::Menunggu => ' Ambil tiket terlebih dahulu sebelum menutupnya.',
+            TicketStatus::Selesai, TicketStatus::Ditolak => ' Tiket yang sudah ditutup tidak dapat diubah lagi.',
+            default => '',
+        };
+
+        return new self(
+            'INVALID_STATUS_TRANSITION',
+            "Status tiket tidak dapat diubah dari {$from->label()} ke {$to->label()}.".$hint,
+            409,
+        );
+    }
+
+    /** PRD 9.3 PATCH status: status = selesai tanpa bukti -> 400 dengan pesan persis ini. */
+    public static function proofRequired(): self
+    {
+        return new self('PROOF_REQUIRED', 'Bukti penyelesaian wajib dilampirkan.', 400, 'proofs');
+    }
+
+    public static function rejectionReasonRequired(): self
+    {
+        return new self('REJECTION_REASON_REQUIRED', 'Alasan penolakan wajib diisi.', 400, 'reason');
+    }
+
+    public static function ratingNotAllowed(): self
+    {
+        return new self('RATING_NOT_ALLOWED', 'Rating hanya dapat diberikan untuk tiket yang sudah Selesai.', 409, 'score');
+    }
+
+    public static function ratingAlreadyGiven(): self
+    {
+        return new self('RATING_ALREADY_EXISTS', 'Anda sudah memberi rating untuk tiket ini. Rating hanya dapat diberikan satu kali.', 409, 'score');
     }
 
     // ------------------------------------------------------------------

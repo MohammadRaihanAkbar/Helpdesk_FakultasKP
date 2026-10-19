@@ -32,13 +32,15 @@ class AttachmentStorage
      *   mimetypes  -> isi file dicek (bukan sekadar nama): file .exe yang diganti nama .png tetap ditolak
      *   extensions -> akhiran nama file juga harus jpg/jpeg/png/pdf
      *
+     * $field bisa diganti, mis. 'proofs' untuk bukti penyelesaian staff (aturannya sama persis, PRD F-TKS-07).
+     *
      * @return array<string, list<string>>
      */
-    public static function rules(): array
+    public static function rules(string $field = 'attachments'): array
     {
         return [
-            'attachments' => ['nullable', 'array', 'max:'.self::MAX_FILES],
-            'attachments.*' => [
+            $field => ['nullable', 'array', 'max:'.self::MAX_FILES],
+            "{$field}.*" => [
                 'file',
                 'max:'.self::MAX_KB,
                 'mimetypes:'.implode(',', self::MIME_TYPES),
@@ -47,15 +49,17 @@ class AttachmentStorage
         ];
     }
 
-    /** Pesan validasi ramah untuk rules() di atas. */
-    public static function messages(): array
+    /** Pesan validasi ramah untuk rules() di atas. $noun = kata yang dipakai di pesan ("Lampiran", "Bukti"). */
+    public static function messages(string $field = 'attachments', string $noun = 'Lampiran'): array
     {
+        $lower = mb_strtolower($noun);
+
         return [
-            'attachments.max' => 'Lampiran maksimal '.self::MAX_FILES.' berkas.',
-            'attachments.*.max' => 'Ukuran setiap lampiran maksimal 5 MB.',
-            'attachments.*.mimetypes' => 'Lampiran harus berupa gambar JPG/PNG atau dokumen PDF.',
-            'attachments.*.extensions' => 'Lampiran harus berakhiran .jpg, .jpeg, .png, atau .pdf.',
-            'attachments.*.uploaded' => 'Lampiran gagal diunggah. Pastikan ukurannya tidak lebih dari 5 MB.',
+            "{$field}.max" => "{$noun} maksimal ".self::MAX_FILES.' berkas.',
+            "{$field}.*.max" => "Ukuran setiap {$lower} maksimal 5 MB.",
+            "{$field}.*.mimetypes" => "{$noun} harus berupa gambar JPG/PNG atau dokumen PDF.",
+            "{$field}.*.extensions" => "{$noun} harus berakhiran .jpg, .jpeg, .png, atau .pdf.",
+            "{$field}.*.uploaded" => "{$noun} gagal diunggah. Pastikan ukurannya tidak lebih dari 5 MB.",
         ];
     }
 
@@ -63,11 +67,13 @@ class AttachmentStorage
      * Simpan file ke disk privat. Belum membuat baris attachments (dipanggil SEBELUM transaksi database,
      * supaya kalau transaksi diulang tidak ada file dobel).
      *
+     * $folder: 'attachments' (lampiran pelapor/thread) atau 'proofs' (bukti penyelesaian staff, M3).
+     *
      * @return array{file_name: string, file_path: string, mime_type: string, file_size: int}
      */
-    public function store(UploadedFile $file): array
+    public function store(UploadedFile $file, string $folder = 'attachments'): array
     {
-        $path = $file->store('attachments/'.now()->format('Y/m'), self::DISK);
+        $path = $file->store($folder.'/'.now()->format('Y/m'), self::DISK);
 
         return [
             'file_name' => $this->cleanName($file->getClientOriginalName()),

@@ -43,6 +43,22 @@ class Ticket extends Model
      */
     public const REJECTION_WRONG_TARGET = 'Salah fakultas/kategori';
 
+    /**
+     * Pilihan alasan penolakan BAKU di form staff (M3). Kunci = nilai yang dikirim form, isi = teks yang disimpan
+     * di rejection_reason (boleh diikuti keterangan: "Teks baku: keterangan").
+     * 'lainnya' tidak punya teks baku, jadi keterangannya WAJIB diisi dan menjadi alasan seutuhnya.
+     */
+    public const REJECTION_REASONS = [
+        'salah_tujuan' => self::REJECTION_WRONG_TARGET,
+        'data_tidak_valid' => 'Data pelapor tidak valid',
+        'di_luar_layanan' => 'Di luar layanan helpdesk fakultas',
+        'duplikat' => 'Tiket ganda (sudah dilaporkan di tiket lain)',
+        'lainnya' => 'Alasan lainnya',
+    ];
+
+    /** Batas "Mendekati SLA": sisa waktu kurang dari 25% target (PRD US-06). */
+    public const SLA_WARNING_RATIO = 0.25;
+
     protected function casts(): array
     {
         return [
@@ -153,8 +169,8 @@ class Ticket extends Model
     #[Scope]
     protected function forStaff(Builder $query, User $staff): void
     {
-        if ($staff->faculty_id === null) {
-            // Staff tanpa fakultas tidak boleh melihat apa pun.
+        if ($staff->faculty_id === null || ! $staff->is_active) {
+            // Staff tanpa fakultas atau yang dinonaktifkan Admin tidak boleh melihat apa pun.
             // (where('faculty_id', null) justru akan diubah Laravel menjadi WHERE faculty_id IS NULL.)
             $query->whereRaw('1 = 0');
 
@@ -168,6 +184,29 @@ class Ticket extends Model
                     StaffSpecialty::query()->select('category_id')->where('staff_id', $staff->id)
                 );
             });
+    }
+
+    /** Tiket di satu Kelompok Layanan (kategori leaf-nya = kelompok itu, atau Jenis Masalah di bawahnya). */
+    #[Scope]
+    protected function inGroup(Builder $query, int $groupId): void
+    {
+        $query->whereHas('category', fn (Builder $category) => $category->where(
+            DB::raw('COALESCE(categories.parent_id, categories.id)'),
+            $groupId
+        ));
+    }
+
+    /** Pencarian nomor tiket atau judul (kotak "Cari nomor tiket…"). Kata kosong = tanpa filter. */
+    #[Scope]
+    protected function search(Builder $query, ?string $term): void
+    {
+        $term = trim((string) $term);
+
+        if ($term !== '') {
+            $query->where(fn (Builder $inner) => $inner
+                ->where('ticket_number', 'like', "%{$term}%")
+                ->orWhere('title', 'like', "%{$term}%"));
+        }
     }
 
     // ------------------------------------------------------------------
@@ -190,6 +229,55 @@ class Ticket extends Model
     {
         return $this->status === TicketStatus::Ditolak
             && str_starts_with((string) $this->rejection_reason, self::REJECTION_WRONG_TARGET);
+    }
+
+    // ------------------------------------------------------------------
+    // SLA (PRD US-06, US-09, F-TKS-09)
+    // ------------------------------------------------------------------
+
+    /** Batas waktu SLA = waktu dibuat + sla_target_hours (snapshot saat tiket dibuat). */
+    public function slaDeadline(): Carbon
+    {
+        return $this->created_at->copy()->addHours($this->sla_target_hours);
+    }
+
+    /**
+     * Indikator SLA untuk tiket yang MASIH TERBUKA:
+     *   'overdue' -> sudah melewati target (badge merah "Melewati SLA")
+     *   'near'    -> sisa waktu < 25% target (badge kuning "Mendekati SLA")
+     *   'ok'      -> masih aman
+     * Tiket yang sudah ditutup -> null (pakai slaMet()).
+     */
+    public function slaState(?Carbon $now = null): ?string
+    {
+        if (! $this->isOpen()) {
+            return null;
+        }
+
+        $now ??= now();
+        $deadline = $this->slaDeadline();
+        $warningSeconds = (int) round($this->sla_target_hours * 3600 * self::SLA_WARNING_RATIO);
+
+        return match (true) {
+            $now->greaterThan($deadline) => 'overdue',
+            $now->greaterThanOrEqualTo($deadline->copy()->subSeconds($warningSeconds)) => 'near',
+            default => 'ok',
+        };
+    }
+
+    /**
+     * Apakah tiket diselesaikan sesuai target SLA (sla_met di PRD 9.3)?
+     * Dihitung dari resolved_at - created_at <= sla_target_hours. HANYA tiket Selesai yang dinilai
+     * (PRD 8.2: tiket Ditolak tidak dihitung dalam SLA Compliance), jadi selain Selesai -> null.
+     * Tidak disimpan di database (ERD tidak punya kolomnya), selalu dihitung ulang dari snapshot.
+     */
+    public function slaMet(): ?bool
+    {
+        if ($this->status !== TicketStatus::Selesai || $this->resolved_at === null) {
+            return null;
+        }
+
+        return $this->resolved_at->lessThanOrEqualTo($this->slaDeadline());
     }
 
     /**
