@@ -28,7 +28,7 @@
             name="login"
             label="NIM / NIDN / Email"
             icon="user"
-            hint="Mahasiswa & alumni lulus 2022 ke atas: NIM. Dosen: NIDN. Staff, admin, dan alumni lulus 2021 ke bawah: email."
+            hint="Mahasiswa & alumni lulus 2022 ke atas: NIM. Dosen: NIDN atau NIP. Alumni lulus 2021 ke bawah: NIM lama atau email yang didaftarkan. Staff & admin: email."
             autocomplete="username"
             autocapitalize="none"
             spellcheck="false"
@@ -62,7 +62,7 @@
         </li>
         <li class="flex gap-3">
             <span class="grid size-8 shrink-0 place-items-center rounded-[10px] bg-primary-soft text-primary"><x-icon name="link" class="size-4" /></span>
-            <span><b class="text-ink">Alumni lulus ≤ 2021:</b> daftar lewat tautan khusus yang dibagikan oleh fakultas Anda.</span>
+            <span><b class="text-ink">Alumni lulus ≤ 2021:</b> daftar lewat tautan khusus yang dibagikan oleh fakultas Anda, lalu masuk dengan NIM lama atau email + password yang Anda buat saat mendaftar.</span>
         </li>
     </ul>
 </x-layouts.guest>

@@ -4,6 +4,7 @@ namespace Tests\Feature\Auth;
 
 use App\Enums\Role;
 use App\Enums\UserType;
+use App\Http\Controllers\Auth\AlumniRegistrationController;
 use App\Http\Requests\Auth\AlumniRegistrationRequest;
 use App\Models\Faculty;
 use App\Models\User;
@@ -44,7 +45,7 @@ class AlumniRegistrationTest extends TestCase
     {
         $this->post('/register/alumni', $this->validData(['graduation_year' => 2021]))
             ->assertRedirect('/login')
-            ->assertSessionHas('status', 'Registrasi alumni berhasil. Silakan login dengan email dan password Anda.');
+            ->assertSessionHas('status', AlumniRegistrationController::SUCCESS_MESSAGE);
 
         $user = User::where('email', 'dedi@example.com')->firstOrFail();
         $this->assertSame(Role::EndUser, $user->role);

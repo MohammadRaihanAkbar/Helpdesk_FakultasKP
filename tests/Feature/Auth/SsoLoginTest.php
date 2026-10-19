@@ -6,6 +6,7 @@ use App\Enums\Role;
 use App\Enums\UserType;
 use App\Models\Faculty;
 use App\Models\User;
+use App\Services\Auth\LoginService;
 use Database\Seeders\FacultySeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\ConnectionException;
@@ -142,19 +143,23 @@ class SsoLoginTest extends TestCase
     public function test_wrong_sso_password_is_rejected(): void
     {
         $this->post('/login', ['login' => '2210110001', 'password' => 'salah'])
-            ->assertSessionHasErrors(['login' => 'NIM/NIDN atau password salah.']);
+            ->assertSessionHasErrors(['login' => LoginService::IDENTITY_FAILED_MESSAGE]);
 
         $this->assertGuest();
         $this->assertDatabaseMissing('users', ['nim' => '2210110001']);
     }
 
-    public function test_alumni_before_2022_is_not_in_sso(): void
+    public function test_alumni_before_2022_is_not_in_sso_but_can_log_in_with_nim_locally(): void
     {
-        // Dedi (lulus 2019) ada di database tapi tidak di SSO -> harus login pakai email.
-        User::factory()->alumni(2019)->create(['nim' => '1510110023']);
+        // Dedi (lulus 2019) ada di database tapi TIDAK ada di SSO.
+        // Dulu test ini justru mengharapkan error (itulah bug M1). Sekarang NIM-nya dicek ke database lokal.
+        $dedi = User::factory()->alumni(2019)->create(['nim' => '1510110023']);
 
         $this->post('/login', ['login' => '1510110023', 'password' => 'password'])
-            ->assertSessionHasErrors(['login' => 'NIM/NIDN atau password salah.']);
+            ->assertRedirect('/dashboard');
+
+        $this->assertAuthenticatedAs($dedi);
+        $this->assertFalse(session()->has('sso_token')); // tidak lewat SSO
     }
 
     public function test_inactive_sso_account_is_rejected(): void

@@ -20,6 +20,12 @@ use Illuminate\View\View;
  */
 class AlumniRegistrationController extends Controller
 {
+    /**
+     * Pesan setelah registrasi. PRD 9.3 hanya menyebut email; sejak perbaikan bug M1 alumni juga
+     * bisa login memakai NIM lama (lihat LoginService::authenticateHiddenLinkAlumni()).
+     */
+    public const SUCCESS_MESSAGE = 'Registrasi alumni berhasil. Silakan login dengan NIM lama atau email pribadi Anda, beserta password yang baru dibuat.';
+
     /** GET /register/alumni */
     public function create(Request $request): View
     {
@@ -48,6 +54,6 @@ class AlumniRegistrationController extends Controller
         ]);
 
         return redirect()->route('login')
-            ->with('status', 'Registrasi alumni berhasil. Silakan login dengan email dan password Anda.');
+            ->with('status', self::SUCCESS_MESSAGE);
     }
 }

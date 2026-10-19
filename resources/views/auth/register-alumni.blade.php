@@ -1,6 +1,3 @@
-<div>
-    <!-- Smile, breathe, and go slowly. - Thich Nhat Hanh -->
-</div>
 {{--
     Registrasi alumni lulus ≤ 2021 lewat hidden link (US-01B). Tidak ditautkan dari halaman publik.
     Field: Nama Lengkap, Email Pribadi, NIM Lama, Tahun Lulus, Fakultas Asal, Password (+ konfirmasi).
@@ -25,7 +22,8 @@
                         hint="Dipakai untuk login dan menerima kabar tiket." required />
         </div>
 
-        <x-ui.input name="nim" label="NIM Lama" inputmode="numeric" maxlength="20" required />
+        <x-ui.input name="nim" label="NIM Lama" inputmode="numeric" maxlength="20"
+                    hint="Hanya angka. Bisa dipakai untuk login selain email." required />
 
         <x-ui.input name="graduation_year" label="Tahun Lulus" type="number" min="1960" max="2021" inputmode="numeric" required />
 
@@ -40,7 +38,7 @@
         </div>
 
         <x-ui.input name="password" label="Password" type="password" autocomplete="new-password" minlength="8"
-                    hint="Minimal 8 karakter." required />
+                    hint="Minimal 8 karakter. Password ini khusus aplikasi helpdesk, bukan password SSO." required />
 
         <x-ui.input name="password_confirmation" label="Ulangi Password" type="password" autocomplete="new-password" required />
 

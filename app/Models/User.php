@@ -6,9 +6,12 @@ namespace App\Models;
 use App\Enums\NotificationType;
 use App\Enums\Role;
 use App\Enums\UserType;
+use App\Http\Requests\Auth\AlumniRegistrationRequest;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -91,6 +94,31 @@ class User extends Authenticatable
     public function hasRole(Role ...$roles): bool
     {
         return in_array($this->role, $roles, true);
+    }
+
+    /**
+     * Alumni hidden link = alumni lulus <= 2021 yang mendaftar sendiri (US-01B).
+     * Hanya akun jenis ini (selain Staff/Admin/Super Admin) yang memakai password lokal;
+     * akun mahasiswa, dosen, dan alumni >= 2022 login lewat SSO.
+     */
+    public function isHiddenLinkAlumni(): bool
+    {
+        return $this->user_type === UserType::Alumni
+            && $this->graduation_year !== null
+            && $this->graduation_year <= AlumniRegistrationRequest::LAST_GRADUATION_YEAR;
+    }
+
+    // ------------------------------------------------------------------
+    // Scope query
+    // ------------------------------------------------------------------
+
+    /** User::hiddenLinkAlumni() -> syarat yang sama dengan isHiddenLinkAlumni(), tetapi untuk query. */
+    #[Scope]
+    protected function hiddenLinkAlumni(Builder $query): void
+    {
+        $query->where('user_type', UserType::Alumni)
+            ->whereNotNull('graduation_year')
+            ->where('graduation_year', '<=', AlumniRegistrationRequest::LAST_GRADUATION_YEAR);
     }
 
     // ------------------------------------------------------------------

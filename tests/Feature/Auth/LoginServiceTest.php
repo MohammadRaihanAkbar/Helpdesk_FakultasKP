@@ -83,6 +83,6 @@ class LoginServiceTest extends TestCase
     {
         config(['sso.driver' => 'fake']);
 
-        $this->assertSame('NIM/NIDN atau password salah.', $this->errorFor('2210110001', 'salah'));
+        $this->assertSame(LoginService::IDENTITY_FAILED_MESSAGE, $this->errorFor('2210110001', 'salah'));
     }
 }

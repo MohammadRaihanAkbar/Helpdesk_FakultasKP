@@ -17,6 +17,7 @@ use Illuminate\Support\Str;
  *   - TIDAK PERNAH mengubah role dan faculty_id. Dosen yang ditunjuk Super Admin menjadi
  *     Admin Fakultas tetap Admin walau login lewat SSO.
  *   - Password SSO tidak disimpan. User baru diberi password acak (kolom password wajib diisi).
+ *   - Akun alumni hidden link yang NIM-nya ternyata ada di SSO: password lokalnya diganti acak.
  */
 class SsoUserSynchronizer
 {
@@ -35,6 +36,13 @@ class SsoUserSynchronizer
                 'password' => Str::random(40), // di-hash otomatis oleh cast 'hashed' di model User
             ]);
             $user->{$column} = $identifier;
+        }
+
+        // Akun ini dulu didaftarkan lewat hidden link alumni, tetapi NIM-nya ternyata dimiliki
+        // pengguna SSO yang sah. Password lokal hasil registrasi dibuang (diganti acak), supaya
+        // pendaftar hidden link tidak bisa lagi masuk ke akun ini lewat email/NIM + password lamanya.
+        if ($user->exists && $user->isHiddenLinkAlumni()) {
+            $user->password = Str::random(40);
         }
 
         $user->fill([
