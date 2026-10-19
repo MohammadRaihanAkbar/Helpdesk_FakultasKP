@@ -55,6 +55,30 @@ class StaffHistoryTest extends StaffTestCase
         $get(['month' => 'bukan-bulan', 'status' => 'menunggu'])->assertOk()->assertSee('Oktober selesai')->assertSee('September ditolak');
     }
 
+    public function test_filters_date_range_and_category_from_prd_us09(): void
+    {
+        $this->closed(TicketStatus::Selesai, 'KRS awal Oktober', Carbon::parse('2026-10-03 10:00'));
+        $this->closed(TicketStatus::Selesai, 'Nilai pertengahan Oktober', Carbon::parse('2026-10-15 10:00'), ['category' => $this->cat('Nilai belum muncul')]);
+        $this->closed(TicketStatus::Ditolak, 'KRS akhir Oktober', Carbon::parse('2026-10-28 10:00'));
+
+        $get = fn (array $query) => $this->actingAs($this->akademik)->get('/staff/history?'.http_build_query($query))->assertOk();
+
+        // Rentang tanggal DITUTUP (inklusif).
+        $get(['from' => '2026-10-10', 'to' => '2026-10-28'])->assertSee('Nilai pertengahan Oktober')->assertSee('KRS akhir Oktober')->assertDontSee('KRS awal Oktober');
+        $get(['from' => '2026-10-28', 'to' => '2026-10-10'])->assertSee('Nilai pertengahan Oktober')->assertDontSee('KRS awal Oktober'); // terbalik ditukar
+        $get(['to' => '2026-10-05'])->assertSee('KRS awal Oktober')->assertDontSee('Nilai pertengahan Oktober');
+
+        // Kategori: Jenis Masalah tertentu, atau Kelompok (semua Jenis Masalah-nya).
+        $get(['category' => $this->cat('Nilai belum muncul')->id])->assertSee('Nilai pertengahan Oktober')->assertDontSee('KRS awal Oktober');
+        $get(['category' => $this->cat('Sistem Akademik & Perkuliahan')->id])->assertSee('Nilai pertengahan Oktober')->assertSee('KRS awal Oktober');
+        // Kategori yang tidak pernah ia tangani diabaikan.
+        $get(['category' => $this->cat('Keuangan & UKT')->id])->assertSee('KRS awal Oktober');
+
+        // Pilihan filter hanya kelompok yang pernah ia tutup (+ Jenis Masalah-nya).
+        $get([])->assertViewHas('categoryOptions', fn (array $options) => in_array('— Nilai belum muncul', $options, true)
+            && in_array('Sistem Akademik & Perkuliahan', $options, true) && ! in_array('Keuangan & UKT', $options, true));
+    }
+
     public function test_detail_shows_proofs_rating_and_sla(): void
     {
         $onTime = $this->closed(TicketStatus::Selesai, 'Tepat waktu', now(), ['hours' => 10]);  // KRS 24 jam

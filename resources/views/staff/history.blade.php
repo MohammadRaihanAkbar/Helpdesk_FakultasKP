@@ -1,6 +1,7 @@
 {{--
     Riwayat Tiket Staff (/staff/history) — US-09, F-TKS-06: tiket Selesai/Ditolak yang pernah saya tangani.
     Setiap baris menampilkan apakah tiket selesai sesuai SLA, dan rating CSAT dari pelapor (bila ada).
+    Filter (US-09): rentang tanggal ditutup, status, dan kategori (Kelompok Layanan atau Jenis Masalah).
 --}}
 @php
     use App\Enums\TicketStatus;
@@ -10,13 +11,14 @@
     <x-page-header title="Riwayat Tiket" description="Tiket yang pernah Anda tangani dan sudah ditutup (Selesai atau Ditolak)." />
 
     <x-ui.card class="mb-4">
-        <form method="GET" action="{{ route('staff.history') }}" class="grid gap-3 md:grid-cols-[1fr_1fr_1.4fr_auto] md:items-end">
-            <x-ui.input name="month" type="month" label="Bulan ditutup" :value="$filters['month']" />
+        <form method="GET" action="{{ route('staff.history') }}" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_1.6fr_auto] lg:items-end">
+            <x-ui.input name="from" type="date" label="Ditutup dari" :value="$filters['from']" />
+            <x-ui.input name="to" type="date" label="Sampai" :value="$filters['to']" />
             <x-ui.select name="status" label="Status" placeholder="Selesai & Ditolak"
                          :options="[TicketStatus::Selesai->value => 'Selesai', TicketStatus::Ditolak->value => 'Ditolak']"
                          :selected="$filters['status']?->value" />
-            <x-ui.select name="group" label="Kelompok Layanan" placeholder="Semua kelompok"
-                         :options="$groups->pluck('name', 'id')->all()" :selected="$filters['group']" />
+            <x-ui.select name="category" label="Kategori (Kelompok / Jenis)" placeholder="Semua kategori"
+                         :options="$categoryOptions" :selected="$filters['category']" />
             <div class="flex gap-2">
                 <x-ui.button type="submit" icon="search">Terapkan</x-ui.button>
                 @if (array_filter($filters))
