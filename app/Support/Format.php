@@ -47,4 +47,29 @@ class Format
 
         return collect($parts)->take(2)->map(fn (int $value, string $unit) => "{$value} {$unit}")->implode(' ');
     }
+
+    /**
+     * Lama waktu dari jumlah detik (rata-rata Time-to-Claim / Resolution Time). null -> "–".
+     * Contoh: 5400 -> "1 jam 30 menit", 93600 -> "1 hari 2 jam".
+     */
+    public static function seconds(int|float|null $seconds): string
+    {
+        if ($seconds === null) {
+            return '–';
+        }
+
+        $base = new \DateTimeImmutable('@0');
+
+        return self::duration($base, $base->modify('+'.(int) round($seconds).' seconds'));
+    }
+
+    /** Persentase gaya Indonesia: 87.5 -> "87,5%", 90.0 -> "90%", null -> "–". */
+    public static function percent(?float $value): string
+    {
+        if ($value === null) {
+            return '–';
+        }
+
+        return number_format($value, $value == floor($value) ? 0 : 1, ',', '.').'%';
+    }
 }

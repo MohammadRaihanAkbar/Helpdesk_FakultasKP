@@ -112,6 +112,10 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::post('/tickets/{ticket}/ping', [Admin\PingController::class, 'store'])
         ->whereNumber('ticket')->middleware('throttle:pings')->name('tickets.ping');
 
+    // Laporan & Analitik + ekspor CSV/Excel (US-15)
+    Route::get('/reports', [Admin\ReportController::class, 'index'])->name('reports.index');
+    Route::get('/reports/export', [Admin\ReportController::class, 'export'])->name('reports.export');
+
     // Pengaturan Layanan (US-11): katalog kategori + target SLA fakultas admin
     Route::controller(Admin\ServiceController::class)->prefix('services')->name('services.')->group(function () {
         Route::get('/', 'index')->name('index');

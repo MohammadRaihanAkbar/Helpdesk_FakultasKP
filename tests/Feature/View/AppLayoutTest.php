@@ -34,16 +34,16 @@ class AppLayoutTest extends TestCase
 
     public function test_menu_only_shows_routes_that_exist(): void
     {
-        $admin = User::factory()->admin()->create();
+        $superAdmin = User::factory()->superAdmin()->create();
 
-        // Per M3 halaman "Monitor Antrean" & "Laporan" Admin belum dibuat (M4), jadi menunya belum tampil.
-        $this->assertSame(['Dashboard', 'Kelola Staff', 'Pengaturan Layanan'], array_column(Navigation::for($admin), 'label'));
+        // Per M4 halaman "Fakultas" & "Pengguna" Super Admin belum dibuat (M5), jadi menunya belum tampil.
+        $this->assertSame(['Dashboard'], array_column(Navigation::for($superAdmin), 'label'));
 
-        // Begitu route "Monitor Antrean" dibuat, menunya muncul sendiri.
-        Route::get('/admin/queue', fn () => 'ok')->name('admin.queue');
+        // Begitu route "Fakultas" dibuat, menunya muncul sendiri.
+        Route::get('/super-admin/faculties', fn () => 'ok')->name('superadmin.faculties.index');
         Route::getRoutes()->refreshNameLookups();
 
-        $this->assertSame(['Dashboard', 'Monitor Antrean', 'Kelola Staff', 'Pengaturan Layanan'], array_column(Navigation::for($admin), 'label'));
+        $this->assertSame(['Dashboard', 'Fakultas'], array_column(Navigation::for($superAdmin), 'label'));
     }
 
     public function test_menu_differs_per_role(): void
@@ -57,7 +57,7 @@ class AppLayoutTest extends TestCase
 
         $this->assertSame(['Dashboard', 'Buat Tiket', 'Tiket Saya', 'Riwayat Tiket'], $labels(User::factory()->create()));
         $this->assertSame(['Dashboard', 'Antrean Tiket', 'Tiket Saya', 'Riwayat Tiket'], $labels(User::factory()->staff()->create()));
-        $this->assertSame(['Dashboard', 'Monitor Antrean', 'Kelola Staff', 'Pengaturan Layanan'], $labels(User::factory()->admin()->create()));
+        $this->assertSame(['Dashboard', 'Monitor Antrean', 'Kelola Staff', 'Pengaturan Layanan', 'Laporan & Analitik'], $labels(User::factory()->admin()->create()));
         $this->assertSame(['Dashboard', 'Pengguna'], $labels(User::factory()->superAdmin()->create()));
     }
 
