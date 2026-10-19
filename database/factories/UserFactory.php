@@ -49,11 +49,67 @@ class UserFactory extends Factory
         ]);
     }
 
+    public function inactive(): static
+    {
+        return $this->state(fn () => [
+            'is_active' => false,
+        ]);
+    }
+
     public function endUser(?Faculty $originFaculty = null, UserType $userType = UserType::Mahasiswa): static
     {
         return $this->state(fn () => [
             'role' => Role::EndUser,
             'user_type' => $userType,
+            'origin_faculty_id' => $originFaculty?->id,
+            'faculty_id' => null,
+        ]);
+    }
+
+    public function dosen(?Faculty $originFaculty = null): static
+    {
+        return $this->state(fn () => [
+            'role' => Role::EndUser,
+            'user_type' => UserType::Dosen,
+            'nidn' => fake()->unique()->numerify('04########'),
+            'origin_faculty_id' => $originFaculty?->id,
+            'faculty_id' => null,
+        ]);
+    }
+
+    public function mahasiswa(?Faculty $originFaculty = null): static
+    {
+        return $this->state(fn () => [
+            'role' => Role::EndUser,
+            'user_type' => UserType::Mahasiswa,
+            'nim' => fake()->unique()->numerify('22########'),
+            'origin_faculty_id' => $originFaculty?->id,
+            'faculty_id' => null,
+        ]);
+    }
+
+    public function alumni(int|Faculty|null $graduationYearOrFaculty = 2023, int|Faculty|null $secondArg = null): static
+    {
+        $graduationYear = 2023;
+        $originFaculty = null;
+
+        if (is_int($graduationYearOrFaculty)) {
+            $graduationYear = $graduationYearOrFaculty;
+            if ($secondArg instanceof Faculty) {
+                $originFaculty = $secondArg;
+            }
+        } elseif ($graduationYearOrFaculty instanceof Faculty) {
+            $originFaculty = $graduationYearOrFaculty;
+            if (is_int($secondArg)) {
+                $graduationYear = $secondArg;
+            }
+        }
+
+        return $this->state(fn () => [
+            'role' => Role::EndUser,
+            'user_type' => UserType::Alumni,
+            'nim' => fake()->unique()->numerify('19########'),
+            'graduation_year' => $graduationYear,
             'origin_faculty_id' => $originFaculty?->id,
             'faculty_id' => null,
         ]);
