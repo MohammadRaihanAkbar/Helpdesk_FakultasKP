@@ -22,6 +22,7 @@ class FakeSsoClientTest extends TestCase
         $expected = [
             '2210110001' => UserType::Mahasiswa,
             '0412038801' => UserType::Dosen,
+            '197905152006042001' => UserType::Dosen, // dosen yang login dengan NIP
             '1910110045' => UserType::Alumni,
             '2310210007' => UserType::Mahasiswa,
         ];
@@ -44,6 +45,17 @@ class FakeSsoClientTest extends TestCase
         $this->assertSame('FITK', $profile->facultyCode);
         $this->assertSame('Tadris Matematika', $profile->programStudi);
         $this->assertSame('nim', $profile->identifierColumn());
+    }
+
+    public function test_dosen_can_be_found_by_nip_in_the_profile(): void
+    {
+        // Kunci fixture Budi adalah NIDN, tetapi NIP-nya ada di isi profil.
+        $profile = $this->client()->authenticate('198804122015031001', 'password');
+
+        $this->assertSame(UserType::Dosen, $profile->userType);
+        $this->assertSame('0412038801', $profile->identifier()); // tetap disimpan dengan NIDN
+        $this->assertSame('198804122015031001', $profile->nip);
+        $this->assertSame(['0412038801', '198804122015031001'], $profile->identifierCandidates());
     }
 
     public function test_wrong_password_is_rejected(): void

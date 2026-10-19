@@ -28,12 +28,34 @@ final class SsoProfile
         public readonly ?string $programStudi = null,
         public readonly ?string $token = null,
         public readonly array $raw = [],
+        public readonly ?string $nip = null,
     ) {}
 
     /** Nilai identitas utama: NIM untuk mahasiswa/alumni, NIDN untuk dosen. */
     public function identifier(): string
     {
         return $this->userType === UserType::Dosen ? (string) $this->nidn : (string) $this->nim;
+    }
+
+    /**
+     * Semua nomor yang mungkin sudah tersimpan untuk orang ini (untuk mencari akun lama).
+     *
+     * Dosen bisa login memakai NIDN maupun NIP. Kolom users.nidn berisi NIDN bila SSO memberikannya,
+     * dan NIP bila tidak. Supaya dosen yang dulu tersimpan dengan NIP tidak dibuatkan akun kedua
+     * saat SSO mulai mengirim NIDN (atau sebaliknya), akun dicari dengan semua nomor ini.
+     *
+     * @return list<string>
+     */
+    public function identifierCandidates(): array
+    {
+        if ($this->userType !== UserType::Dosen) {
+            return [(string) $this->nim];
+        }
+
+        return array_values(array_unique(array_filter(
+            [$this->nidn, $this->nip, $this->username],
+            fn (?string $value) => $value !== null && $value !== '',
+        )));
     }
 
     /** Nama kolom identitas di tabel users: 'nim' atau 'nidn'. */
@@ -65,7 +87,9 @@ final class SsoProfile
 
         $nim = $get('nim');
         // NIDN diutamakan (PRD); NIP dipakai sebagai cadangan karena login Bridge tertulis "NIM/NIP/NIK".
-        $nidn = $get('nidn') ?? $get('nip');
+        // NIP juga disimpan terpisah di $nip, supaya akun lama bisa ditemukan dengan NIP maupun NIDN.
+        $nip = $get('nip');
+        $nidn = $get('nidn') ?? $nip;
         $status = self::lower($get('status'));
         $graduationYear = $get('graduation_year');
         $graduationYear = is_numeric($graduationYear) ? (int) $graduationYear : null;
@@ -75,6 +99,10 @@ final class SsoProfile
         if ($kind === 'dosen') {
             $userType = UserType::Dosen;
             $nidn ??= $username;      // profil tidak memberi NIDN/NIP -> pakai yang diketik
+            // Dosen yang login dengan NIP 18 digit tapi profilnya tanpa field nip: NIP = yang diketik.
+            if ($nip === null && preg_match('/^\d{18}$/', $username)) {
+                $nip = $username;
+            }
             $nim = null;
             $graduationYear = null;
         } else {
@@ -83,6 +111,7 @@ final class SsoProfile
             $userType = $isGraduated ? UserType::Alumni : UserType::Mahasiswa;
             $nim ??= $username;
             $nidn = null;
+            $nip = null;
             if (! $isGraduated) {
                 $graduationYear = null;
             }
@@ -111,6 +140,7 @@ final class SsoProfile
             programStudi: $get('program_studi'),
             token: $token,
             raw: $data,
+            nip: $nip,
         );
     }
 

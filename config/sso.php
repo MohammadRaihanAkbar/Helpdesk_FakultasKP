@@ -130,15 +130,17 @@ return [
     | Pengguna simulasi (driver 'fake')
     |--------------------------------------------------------------------------
     |
-    | Kunci = username yang diketik di form login (NIM / NIDN).
+    | Kunci = username yang diketik di form login (NIM / NIDN / NIP). Dosen juga bisa ditemukan
+    | lewat field nidn/nip di profilnya, jadi satu dosen bisa login dengan NIDN maupun NIP.
     | 'response' meniru respons GET /api/v2/profil SESUAI pemetaan di atas, sehingga
     | jalur kode yang sama (SsoProfile::fromResponse) dipakai di mode fake maupun bridge.
     |
-    | Tiga akun pertama = pelapor SSO di UserSeeder. Alumni lulus 2019 (Dedi, NIM 1510110023)
-    | SENGAJA TIDAK ADA di sini, karena SSO memang tidak punya data alumni <= 2021:
-    | ia login memakai email + password hasil registrasi hidden link.
-    | Akun keempat (2310210007) belum ada di database: untuk mencoba "login SSO pertama kali"
-    | yang membuat akun otomatis.
+    | Mahasiswa 2210110001, dosen 0412038801, dan alumni 1910110045 = pelapor SSO di UserSeeder.
+    | Alumni lulus 2019 (Dedi, NIM 1510110023) SENGAJA TIDAK ADA di sini, karena SSO memang tidak
+    | punya data alumni <= 2021: ia login memakai NIM atau email + password hasil registrasi hidden link
+    | (dicek di database lokal oleh LoginService, bukan oleh SSO).
+    | Dosen NIP 197905152006042001 dan mahasiswa 2310210007 belum ada di database: untuk mencoba
+    | "login SSO pertama kali" yang membuat akun otomatis.
     */
     'fake_users' => [
 
@@ -161,7 +163,7 @@ return [
             ],
         ],
 
-        '0412038801' => [ // Dosen FITK (login dengan NIDN)
+        '0412038801' => [ // Dosen FITK: login dengan NIDN 0412038801 ATAU NIP 198804122015031001 (lihat FakeSsoClient::findUser)
             'password' => 'password',
             'response' => [
                 'success' => true,
@@ -174,6 +176,23 @@ return [
                     'nidn' => '0412038801',
                     'prodi' => ['kode' => 'PBA', 'nama' => 'Pendidikan Bahasa Arab'],
                     'fakultas' => ['kode' => 'FITK', 'nama' => 'Fakultas Ilmu Tarbiyah dan Keguruan'],
+                ],
+            ],
+        ],
+
+        '197905152006042001' => [ // Dosen FEBI yang login dengan NIP 18 digit (profil SSO tanpa NIDN)
+            'password' => 'password',
+            'response' => [
+                'success' => true,
+                'data' => [
+                    'username' => '197905152006042001',
+                    'nama' => 'Dra. Siti Dosen FEBI',
+                    'email' => 'dosen.febi@uinssc.test',
+                    'jenis_user' => 'dosen',
+                    'nip' => '197905152006042001',
+                    'nidn' => null, // -> users.nidn diisi NIP (cadangan, lihat SsoProfile)
+                    'prodi' => ['kode' => 'ES', 'nama' => 'Ekonomi Syariah'],
+                    'fakultas' => ['kode' => 'FEBI', 'nama' => 'Fakultas Ekonomi dan Bisnis Islam'],
                 ],
             ],
         ],

@@ -11,7 +11,7 @@ use Illuminate\Support\Str;
  * Menyalin data profil SSO ke tabel users (buat baru atau perbarui), setiap kali login SSO.
  *
  * Aturan (rencana teknis 3.1, PRD US-01):
- *   - Cari user berdasarkan NIM (mahasiswa/alumni) atau NIDN (dosen).
+ *   - Cari user berdasarkan NIM (mahasiswa/alumni) atau NIDN (dosen; NIP sebagai cadangan).
  *   - Selalu sinkronkan: nama, email, user_type, graduation_year, program_studi, origin_faculty_id.
  *     -> mahasiswa yang sudah lulus otomatis berubah menjadi alumni.
  *   - TIDAK PERNAH mengubah role dan faculty_id. Dosen yang ditunjuk Super Admin menjadi
@@ -26,7 +26,10 @@ class SsoUserSynchronizer
         $column = $profile->identifierColumn();   // 'nim' atau 'nidn'
         $identifier = $profile->identifier();
 
-        $user = User::where($column, $identifier)->first();
+        // Cari akun lama: utamakan yang nomornya persis sama, lalu nomor lain milik orang yang sama
+        // (dosen: NIDN atau NIP, lihat SsoProfile::identifierCandidates()).
+        $user = User::where($column, $identifier)->first()
+            ?? User::whereIn($column, $profile->identifierCandidates())->first();
 
         if ($user === null) {
             // Akun baru: nilai yang hanya diisi SEKALI saat dibuat
@@ -35,8 +38,11 @@ class SsoUserSynchronizer
                 'is_active' => true,
                 'password' => Str::random(40), // di-hash otomatis oleh cast 'hashed' di model User
             ]);
-            $user->{$column} = $identifier;
         }
+
+        // Identitas selalu mengikuti SSO. Contoh: dosen yang dulu tersimpan dengan NIP
+        // berganti ke NIDN begitu profil SSO-nya memuat NIDN.
+        $user->{$column} = $identifier;
 
         // Akun ini dulu didaftarkan lewat hidden link alumni, tetapi NIM-nya ternyata dimiliki
         // pengguna SSO yang sah. Password lokal hasil registrasi dibuang (diganti acak), supaya
