@@ -9,7 +9,8 @@ Aplikasi helpdesk (layanan aduan & permohonan informasi) untuk **seluruh fakulta
 - **Admin Fakultas** mengelola staff, spesialisasi, katalog layanan & target SLA, memantau antrean, dan melihat laporan.
 - **Super Admin** mengelola data master fakultas dan menunjuk Admin Fakultas.
 
-Login mahasiswa/dosen/alumni ≥ 2022 memakai **SSO kampus** (NIM/NIDN). Staff, admin, dan alumni lulusan ≤ 2021 memakai email + password.
+Login mahasiswa/dosen/alumni ≥ 2022 memakai **SSO kampus** (NIM, atau NIDN/NIP untuk dosen). Staff dan admin memakai email + password.
+Alumni lulusan ≤ 2021 (daftar lewat hidden link) memakai **NIM lama atau email** + password yang dibuat saat registrasi.
 
 Dibangun dengan **Laravel 13 + Blade + MySQL**, Alpine.js, Tailwind CSS v4 (Vite). Dokumen acuan: PRD v6.2 dan Rencana Teknis.
 
@@ -86,15 +87,17 @@ Semua password: **`password`**. Login di `/login` (satu kolom untuk NIM / NIDN /
 | Staff FITK              | `staff.umum.fitk@uinssc.test`     | Administrasi, UKT, Fasilitas, IT                                                                           |
 | Staff FITK              | `staff.alumni.fitk@uinssc.test`   | Transkrip, PDDIKTI                                                                                         |
 | Mahasiswa (SSO)         | NIM `2210110001`                  |                                                                                                            |
-| Dosen (SSO)             | NIDN `0412038801`                 |                                                                                                            |
+| Dosen (SSO)             | NIDN `0412038801`                 | bisa juga dengan NIP `198804122015031001` (akun yang sama)                                                 |
+| Dosen FEBI (SSO)        | NIP `197905152006042001`          | profil SSO tanpa NIDN: tersimpan dengan NIP; akun dibuat otomatis saat login pertama                       |
 | Alumni lulus 2023 (SSO) | NIM `1910110045`                  | jenis pelapor otomatis *alumni*                                                                          |
-| Alumni lulus 2019       | `dedi.alumni2019@example.com`     | tidak ada di SSO, daftar lewat hidden link                                                                 |
+| Alumni lulus 2019       | NIM `1510110023` atau `dedi.alumni2019@example.com` | tidak ada di SSO, daftar lewat hidden link; dicek di database lokal                  |
 | Mahasiswa baru (SSO)    | NIM `2310210007`                  | belum ada di database: akun dibuat otomatis saat login pertama                                             |
 
 Akun SSO di atas hanya bisa dipakai pada mode `SSO_DRIVER=fake` (lihat di bawah).
 
 **Registrasi alumni ≤ 2021** (hidden link, tidak ditautkan dari halaman mana pun): `/register/alumni`.
 Jika `ALUMNI_REGISTRATION_KEY` di `.env` diisi, alamatnya menjadi `/register/alumni?key=<kunci>`.
+Setelah mendaftar, alumni langsung bisa login dengan NIM lama **atau** email pribadi + password yang baru dibuat.
 
 ## Mode SSO: `fake` vs `bridge`
 
@@ -128,7 +131,7 @@ Pastikan ekstensi `pdo_sqlite` aktif.
 | `app/Models`                              | 12 model sesuai tabel PRD + relasi & scope                                    |
 | `app/Services/CategoryCatalogService.php` | Katalog Kategori Layanan Standar (dipakai seeder & saat fakultas baru dibuat) |
 | `app/Services/Sso`                        | Login SSO: interface, klien Bridge, klien simulasi, sinkronisasi user         |
-| `app/Services/Auth/LoginService.php`      | Alur login satu kolom (email → lokal, NIM/NIDN → SSO)                       |
+| `app/Services/Auth/LoginService.php`      | Alur login satu kolom (email → lokal, NIM alumni ≤ 2021 → lokal, NIM/NIDN/NIP lain → SSO) |
 | `app/Http/Middleware`                     | `role`, akun aktif, kunci hidden link alumni                                |
 | `config/sso.php`                          | Konfigurasi SSO + pemetaan field profil + akun simulasi                       |
 | `lang/id`                                 | Pesan validasi & autentikasi Bahasa Indonesia                                 |

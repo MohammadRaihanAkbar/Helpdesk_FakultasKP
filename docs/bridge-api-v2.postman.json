@@ -1,0 +1,212 @@
+{
+  "info": {
+    "_postman_id": "00fb5b0f-755a-4756-a1a6-330bc56bdeb1",
+    "name": "Bridge API v2 (Auth & Profil)",
+    "description": "Postman Collection untuk Bridge API v2 — mencakup semua endpoint API v2 (auth, profil, berita, pesan, akademik, presensi, input nilai, pembayaran, email kampus, e-admisi, admin).\n\n**Auth:** Gunakan `auth:sanctum` dengan Bearer token.\n\n**Variable:**\n- `{{base_url}}` — base URL (contoh: `https://bridge.ecampuz.com`)\n- `{{token}}` — Bearer token setelah login\n- `{{token_admisi}}` — Bearer token khusus dengan ability `eadmisi-access-token`\n- `{{semester}}` — kode semester (e.g. `20251`)\n- `{{teman_id}}` — username tujuan pesan\n- `{{pesan_id}}` — ID pesan\n- `{{kelas_id}}` — ID kelas\n- `{{pertemuan_id}}` — ID pertemuan/presensi\n- `{{nim}}` — NIM mahasiswa\n- `{{nip}}` — NIP dosen\n- `{{username}}` — username portal\n- `{{prodi_kode}}` — kode prodi\n- `{{nomor_pendaftaran}}` — nomor pendaftaran PMB",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "58270602",
+    "_collection_link": "https://go.postman.co/collection/58270602-00fb5b0f-755a-4756-a1a6-330bc56bdeb1?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const jsonData = pm.response.json();",
+                  "const token = jsonData.data?.token || jsonData.token;",
+                  "if (token) {",
+                  "    pm.collectionVariables.set('token', token);",
+                  "    console.log('Token berhasil disimpan:', token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "username",
+                  "value": "210101001",
+                  "description": "NIM/NIP/NIK portal"
+                },
+                {
+                  "key": "password",
+                  "value": "password123",
+                  "description": "Password portal"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v2/portal/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v2",
+                "portal",
+                "login"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v2/logout",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v2",
+                "logout"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Profil",
+      "item": [
+        {
+          "name": "Profil",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v2/profil",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v2",
+                "profil"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000"
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "semester",
+      "value": "20252"
+    },
+    {
+      "key": "teman_id",
+      "value": ""
+    },
+    {
+      "key": "pesan_id",
+      "value": ""
+    },
+    {
+      "key": "kelas_id",
+      "value": ""
+    },
+    {
+      "key": "nim",
+      "value": ""
+    },
+    {
+      "key": "nip",
+      "value": ""
+    },
+    {
+      "key": "username",
+      "value": ""
+    },
+    {
+      "key": "prodi_kode",
+      "value": "1"
+    },
+    {
+      "key": "id",
+      "value": ""
+    },
+    {
+      "key": "kode_mk",
+      "value": ""
+    },
+    {
+      "key": "pertemuan_id",
+      "value": ""
+    },
+    {
+      "key": "email_kampus",
+      "value": ""
+    },
+    {
+      "key": "krsdt_id",
+      "value": ""
+    },
+    {
+      "key": "token_admisi",
+      "value": ""
+    },
+    {
+      "key": "nomor_pendaftaran",
+      "value": "SPAN.001.001"
+    },
+    {
+      "key": "feedback_id",
+      "value": ""
+    },
+    {
+      "key": "fakultas_kode",
+      "value": ""
+    }
+  ]
+}
