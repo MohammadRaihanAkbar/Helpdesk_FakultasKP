@@ -34,21 +34,21 @@ class AppLayoutTest extends TestCase
 
     public function test_menu_only_shows_routes_that_exist(): void
     {
-        $staff = User::factory()->staff()->create();
+        $admin = User::factory()->admin()->create();
 
-        // Per M2 halaman Staff baru Dashboard (antrean dibuat di M3).
-        $this->assertSame(['Dashboard'], array_column(Navigation::for($staff), 'label'));
+        // Per M3 halaman "Monitor Antrean" & "Laporan" Admin belum dibuat (M4), jadi menunya belum tampil.
+        $this->assertSame(['Dashboard', 'Kelola Staff', 'Pengaturan Layanan'], array_column(Navigation::for($admin), 'label'));
 
-        // Begitu route "Antrean Tiket" dibuat, menunya muncul sendiri.
-        Route::get('/staff/queue', fn () => 'ok')->name('staff.queue');
+        // Begitu route "Monitor Antrean" dibuat, menunya muncul sendiri.
+        Route::get('/admin/queue', fn () => 'ok')->name('admin.queue');
         Route::getRoutes()->refreshNameLookups();
 
-        $this->assertSame(['Dashboard', 'Antrean Tiket'], array_column(Navigation::for($staff), 'label'));
+        $this->assertSame(['Dashboard', 'Monitor Antrean', 'Kelola Staff', 'Pengaturan Layanan'], array_column(Navigation::for($admin), 'label'));
     }
 
     public function test_menu_differs_per_role(): void
     {
-        foreach (['staff.queue', 'admin.queue', 'superadmin.users.index'] as $name) {
+        foreach (['admin.queue', 'superadmin.users.index'] as $name) {
             Route::get('/_test/'.$name, fn () => 'ok')->name($name);
         }
         Route::getRoutes()->refreshNameLookups();
@@ -56,7 +56,7 @@ class AppLayoutTest extends TestCase
         $labels = fn (User $user) => array_column(Navigation::for($user), 'label');
 
         $this->assertSame(['Dashboard', 'Buat Tiket', 'Tiket Saya', 'Riwayat Tiket'], $labels(User::factory()->create()));
-        $this->assertSame(['Dashboard', 'Antrean Tiket'], $labels(User::factory()->staff()->create()));
+        $this->assertSame(['Dashboard', 'Antrean Tiket', 'Tiket Saya', 'Riwayat Tiket'], $labels(User::factory()->staff()->create()));
         $this->assertSame(['Dashboard', 'Monitor Antrean', 'Kelola Staff', 'Pengaturan Layanan'], $labels(User::factory()->admin()->create()));
         $this->assertSame(['Dashboard', 'Pengguna'], $labels(User::factory()->superAdmin()->create()));
     }

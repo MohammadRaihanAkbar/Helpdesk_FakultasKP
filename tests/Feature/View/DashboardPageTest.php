@@ -43,7 +43,7 @@ class DashboardPageTest extends TestCase
         $this->actingAs($staff)->get('/staff/dashboard')
             ->assertSee('Keuangan &amp; UKT', false)
             ->assertSee('Fakultas Contoh')
-            ->assertSee('Antrean masih kosong');
+            ->assertSee('0 tiket menunggu');
     }
 
     public function test_staff_without_specialty_is_told_to_contact_admin(): void

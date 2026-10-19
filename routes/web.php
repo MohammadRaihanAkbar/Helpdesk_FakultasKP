@@ -70,6 +70,23 @@ Route::middleware('auth')->group(function () {
 // ---------- Staff Fakultas ----------
 Route::middleware(['auth', 'role:staff'])->prefix('staff')->name('staff.')->group(function () {
     Route::get('/dashboard', Staff\DashboardController::class)->name('dashboard');
+
+    // Antrean Tiket sesuai spesialisasi (US-07)
+    Route::get('/queue', [Staff\QueueController::class, 'index'])->name('queue');
+
+    // Tiket Saya + detail + aksi (US-07, US-08). {ticket} hanya angka.
+    Route::controller(Staff\TicketController::class)->prefix('tickets')->name('tickets.')->whereNumber('ticket')->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::get('/{ticket}', 'show')->name('show');
+        Route::patch('/{ticket}/assign', 'assign')->middleware('throttle:tickets')->name('assign');
+        Route::patch('/{ticket}/status', 'status')->middleware('throttle:tickets')->name('status');
+    });
+    Route::post('/tickets/{ticket}/comments', [Staff\TicketCommentController::class, 'store'])
+        ->whereNumber('ticket')->middleware('throttle:tickets')->name('tickets.comments.store');
+
+    // Riwayat Tiket staff (US-09). Detail memakai halaman yang sama dengan Tiket Saya.
+    Route::get('/history', [Staff\HistoryController::class, 'index'])->name('history');
+    Route::get('/history/{ticket}', [Staff\TicketController::class, 'show'])->whereNumber('ticket')->name('history.show');
 });
 
 // ---------- Admin Fakultas ----------

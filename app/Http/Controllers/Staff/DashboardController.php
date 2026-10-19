@@ -2,19 +2,71 @@
 
 namespace App\Http\Controllers\Staff;
 
+use App\Enums\TicketStatus;
 use App\Http\Controllers\Controller;
+use App\Models\Rating;
+use App\Models\Ticket;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 /**
- * Dashboard Staff (placeholder M1). Isi ringkasan & grafik menyusul di milestone berikutnya.
+ * GET /staff/dashboard — Dashboard Staff Fakultas (US-06, PRD 10.3). Semua angka dari data asli.
+ *
+ * 5 kartu PRD: Antrean (sesuai spesialisasi), Sedang Saya Proses, Selesai Hari Ini, Ditolak Bulan Ini,
+ * Total Ditangani Bulan Ini (= tiket yang saya tutup bulan ini, Selesai + Ditolak).
+ * Kartu ke-6 (tambahan): rata-rata rating CSAT dari tiket yang pernah saya tangani.
+ *
+ * Daftar: tiket Mendekati/Melewati SLA (antrean + tiket saya) dan 5 tiket yang sedang saya proses.
  */
 class DashboardController extends Controller
 {
+    /** Berapa tiket antrean yang diperiksa untuk daftar SLA (antrean diurutkan dari yang tertua). */
+    private const SLA_SCAN_LIMIT = 100;
+
     public function __invoke(Request $request): View
     {
+        $staff = $request->user()->load('faculty', 'specialties');
+        $today = now()->startOfDay();
+        $month = now()->startOfMonth();
+
+        $queue = Ticket::forStaff($staff)->where('status', TicketStatus::Menunggu);
+        $mine = fn () => $staff->handledTickets();
+        $closedSince = fn (TicketStatus $status, $since) => $mine()->where('status', $status)->where('resolved_at', '>=', $since)->count();
+
+        $ratings = Rating::whereHas('ticket', fn ($query) => $query->where('handler_id', $staff->id));
+
+        $stats = [
+            'queue' => (clone $queue)->count(),
+            'in_progress' => $mine()->where('status', TicketStatus::Diproses)->count(),
+            'resolved_today' => $closedSince(TicketStatus::Selesai, $today),
+            'rejected_month' => $closedSince(TicketStatus::Ditolak, $month),
+            'resolved_month' => $closedSince(TicketStatus::Selesai, $month),
+            'rating_avg' => $ratings->avg('score'),
+            'rating_count' => $ratings->count(),
+        ];
+        $stats['handled_month'] = $stats['resolved_month'] + $stats['rejected_month'];
+
+        $inProgress = $mine()->where('status', TicketStatus::Diproses)
+            ->with(['category.parent', 'faculty', 'handler', 'reporter'])
+            ->orderBy('created_at')
+            ->get();
+
+        // Tiket yang perlu perhatian: merah (lewat SLA) dulu, lalu kuning; di dalamnya batas SLA terdekat dulu.
+        $slaAlerts = (clone $queue)->with(['category.parent', 'faculty', 'reporter'])->orderBy('created_at')->limit(self::SLA_SCAN_LIMIT)->get()
+            ->concat($inProgress)
+            ->filter(fn (Ticket $ticket) => in_array($ticket->slaState(), ['overdue', 'near'], true))
+            ->sortBy([
+                fn (Ticket $a, Ticket $b) => ($a->slaState() === 'overdue' ? 0 : 1) <=> ($b->slaState() === 'overdue' ? 0 : 1),
+                fn (Ticket $a, Ticket $b) => $a->slaDeadline() <=> $b->slaDeadline(),
+            ])
+            ->take(5)
+            ->values();
+
         return view('staff.dashboard', [
-            'user' => $request->user()->load('faculty', 'originFaculty'),
+            'user' => $staff,
+            'stats' => $stats,
+            'slaAlerts' => $slaAlerts,
+            'inProgress' => $inProgress->sortByDesc('assigned_at')->take(5)->values(),
         ]);
     }
 }

@@ -3,6 +3,8 @@
 namespace App\Support;
 
 use App\Enums\Role;
+use App\Enums\TicketStatus;
+use App\Models\Ticket;
 use App\Models\User;
 use Illuminate\Support\Facades\Route;
 
@@ -14,8 +16,8 @@ use Illuminate\Support\Facades\Route;
  * bertambah sendiri ketika route baru ditambahkan di milestone berikutnya. Hal yang sama
  * berlaku untuk kotak pencarian di top bar.
  *
- * Status per M2: pelapor sudah punya Dashboard, Buat Tiket, Tiket Saya, Riwayat Tiket;
- * Admin Fakultas sudah punya Kelola Staff & Pengaturan Layanan. Sisanya menyusul (M3+).
+ * Status per M3: pelapor dan Staff sudah punya semua menunya (Dashboard, Antrean, Tiket Saya, Riwayat);
+ * Admin Fakultas sudah punya Kelola Staff & Pengaturan Layanan. Sisanya menyusul (M4+).
  */
 class Navigation
 {
@@ -73,13 +75,17 @@ class Navigation
     }
 
     /**
-     * Angka kecil di samping menu. Saat ini: jumlah tiket aktif (Menunggu + Diproses) di "Tiket Saya".
-     * null = tidak ada angka.
+     * Angka kecil di samping menu. null = tidak ada angka.
+     *   Pelapor "Tiket Saya"  -> tiket aktif (Menunggu + Diproses)
+     *   Staff "Antrean Tiket" -> tiket Menunggu sesuai spesialisasi
+     *   Staff "Tiket Saya"    -> tiket Diproses yang sedang ia tangani
      */
     private static function count(User $user, string $route): ?int
     {
         return match ($route) {
             'tickets.index' => $user->reportedTickets()->open()->count(),
+            'staff.queue' => Ticket::forStaff($user)->where('status', TicketStatus::Menunggu)->count(),
+            'staff.tickets.index' => $user->handledTickets()->where('status', TicketStatus::Diproses)->count(),
             default => null,
         };
     }
@@ -130,7 +136,7 @@ class Navigation
                 ['route' => 'staff.dashboard', 'label' => 'Dashboard', 'icon' => 'layout-dashboard'],
                 ['route' => 'staff.queue', 'label' => 'Antrean Tiket', 'icon' => 'inbox'],
                 ['route' => 'staff.tickets.index', 'label' => 'Tiket Saya', 'icon' => 'ticket', 'match' => ['staff.tickets.*']],
-                ['route' => 'staff.history', 'label' => 'Riwayat Tiket', 'icon' => 'history'],
+                ['route' => 'staff.history', 'label' => 'Riwayat Tiket', 'icon' => 'history', 'match' => ['staff.history', 'staff.history.*']],
             ],
             Role::Admin => [
                 ['route' => 'admin.dashboard', 'label' => 'Dashboard', 'icon' => 'layout-dashboard'],
