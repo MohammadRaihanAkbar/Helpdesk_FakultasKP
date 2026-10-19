@@ -37,7 +37,7 @@ Yang **belum**: Super Admin, email notifikasi (termasuk email Ping), peringkat S
 | `resources/views/components/charts/bars`, `charts/donut` | Grafik batang (HTML+CSS) dan donat (SVG), tanpa library                 |
 | `resources/views/components/kpi-card`, `admin-ticket-row`, `ping-button` | Kartu angka, baris tiket admin, tombol + dialog Ping    |
 | `app/Support/ChartPalette.php`                           | Warna grafik dari token tema                                            |
-| `tests/Feature/AdminMonitoring/*`                        | 41 tes baru untuk M4                                                    |
+| `tests/Feature/AdminMonitoring/*`                        | 35 tes baru untuk M4 (+2 di StaffHistoryTest & DatabaseSeederTest)      |
 
 Polanya tetap sama: **Controller** tipis → **Policy** (boleh/tidak) → **Service** (aturan PRD).
 
