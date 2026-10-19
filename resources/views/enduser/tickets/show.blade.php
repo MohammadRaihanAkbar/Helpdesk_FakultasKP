@@ -5,6 +5,7 @@
     - Thread: maks. 20 pesan publik. Pelapor TIDAK PERNAH melihat catatan internal (difilter di controller).
       Pesan staff diberi label "Staff" dan warna berbeda.
     - Tiket ditutup: alasan penolakan / bukti penyelesaian; tombol "Buat Ulang Tiket" bila ditolak karena salah fakultas/kategori.
+    - Tiket Selesai tanpa rating: form rating CSAT bintang 1–5 (M3). Rating yang sudah ada ditampilkan.
 --}}
 @php
     $limit = \App\Models\Ticket::THREAD_LIMIT;
@@ -79,17 +80,35 @@
                         @include('enduser.tickets._files', ['files' => $ticket->resolutionProofs, 'route' => 'proofs.show'])
                     @endif
                     @if ($ticket->rating)
-                        <div class="mt-4 border-t border-line pt-4 text-sm">
-                            <p class="font-bold">Penilaian Anda</p>
-                            <p class="mt-1 flex items-center gap-1 text-accent" aria-label="{{ $ticket->rating->score }} dari 5 bintang">
-                                @for ($i = 1; $i <= 5; $i++)
-                                    <x-icon name="star" @class(['size-5', 'fill-current' => $i <= $ticket->rating->score, 'text-line-strong' => $i > $ticket->rating->score]) />
-                                @endfor
-                            </p>
-                            @if ($ticket->rating->comment)
-                                <p class="mt-1 text-muted">"{{ $ticket->rating->comment }}"</p>
-                            @endif
+                        <div class="mt-4 border-t border-line pt-4">
+                            @include('tickets._rating', ['rating' => $ticket->rating, 'label' => 'Penilaian Anda'])
                         </div>
+                    @elseif ($canRate)
+                        {{-- Form rating CSAT (US-05): bintang 1–5 + komentar opsional maks. 500 karakter, sekali saja. --}}
+                        <form method="POST" action="{{ route('tickets.rating.store', $ticket) }}" id="rating"
+                              class="mt-4 space-y-3 border-t border-line pt-4" x-data="{ score: {{ (int) old('score', 0) }}, hover: 0 }">
+                            @csrf
+                            <fieldset>
+                                <legend class="text-sm font-extrabold text-ink">Beri penilaian layanan</legend>
+                                <p class="text-sm text-muted">Seberapa puas Anda dengan penanganan tiket ini? Rating hanya bisa diberikan satu kali.</p>
+                                <div class="mt-2 flex items-center gap-1" @mouseleave="hover = 0">
+                                    @for ($i = 1; $i <= 5; $i++)
+                                        <label class="cursor-pointer rounded-control p-1 focus-within:ring-4 focus-within:ring-accent/30" @mouseenter="hover = {{ $i }}">
+                                            <input type="radio" name="score" value="{{ $i }}" class="sr-only" x-model.number="score" @checked((int) old('score') === $i) required>
+                                            <x-icon name="star" class="size-8 text-accent" x-bind:class="(hover || score) >= {{ $i }} ? 'fill-current' : 'text-line-strong'" />
+                                            <span class="sr-only">{{ $i }} bintang</span>
+                                        </label>
+                                    @endfor
+                                    <span class="ml-2 font-mono text-sm text-muted" x-text="score ? score + '/5' : ''"></span>
+                                </div>
+                                @error('score')
+                                    <p class="mt-1 text-sm text-ditolak-fg">{{ $message }}</p>
+                                @enderror
+                            </fieldset>
+                            <x-ui.textarea name="comment" label="Komentar (opsional)" :maxlength="\App\Services\Tickets\RatingService::COMMENT_MAX" rows="3"
+                                           placeholder="Ceritakan pengalaman Anda…" />
+                            <x-ui.button type="submit" icon="star">Kirim Rating</x-ui.button>
+                        </form>
                     @endif
                 </x-ui.card>
             @endif
@@ -106,36 +125,7 @@
                         Belum ada pesan. {{ $ticket->isOpen() ? 'Gunakan thread ini untuk menambah informasi atau menjawab pertanyaan staff.' : '' }}
                     </p>
                 @else
-                    <ol class="space-y-3">
-                        @foreach ($comments as $comment)
-                            @php
-                                $mine = $comment->user_id === $viewer->id;
-                                $fromStaff = $comment->user->isStaff();
-                            @endphp
-                            <li @class([
-                                'rounded-card border px-4 py-3',
-                                'border-accent/40 bg-accent-soft' => $comment->is_internal_note,
-                                'border-diproses-dot/30 bg-diproses-bg' => ! $comment->is_internal_note && $fromStaff,
-                                'border-line bg-surface' => ! $comment->is_internal_note && ! $fromStaff,
-                                'sm:ml-10' => $mine,
-                                'sm:mr-10' => ! $mine,
-                            ])>
-                                <div class="flex flex-wrap items-center gap-2 text-sm">
-                                    <span class="font-bold text-ink">{{ $mine ? 'Anda' : $comment->user->name }}</span>
-                                    @if ($comment->is_internal_note)
-                                        <x-ui.badge tone="warning">Catatan Internal</x-ui.badge>
-                                    @elseif ($fromStaff)
-                                        <x-ui.badge tone="info">Staff</x-ui.badge>
-                                    @endif
-                                    <span class="text-xs text-muted">{{ $comment->created_at->translatedFormat('j M Y, H:i') }}</span>
-                                </div>
-                                <p class="mt-1.5 text-[15px] leading-relaxed whitespace-pre-line text-ink">{{ $comment->body }}</p>
-                                @if ($comment->attachments->isNotEmpty())
-                                    @include('enduser.tickets._files', ['files' => $comment->attachments, 'route' => 'attachments.show'])
-                                @endif
-                            </li>
-                        @endforeach
-                    </ol>
+                    @include('tickets._comments', ['comments' => $comments, 'viewer' => $viewer])
                 @endif
 
                 <div class="mt-5 border-t border-line pt-5">
@@ -177,21 +167,7 @@
 
         {{-- Linimasa --}}
         <aside class="space-y-4">
-            <x-ui.card title="Riwayat Aktivitas">
-                <ol class="relative space-y-5 border-l-2 border-line pl-5">
-                    @foreach ($ticket->timeline() as $step)
-                        <li class="relative">
-                            <span @class([
-                                'absolute top-1 -left-[27px] size-3 rounded-full ring-4 ring-surface',
-                                'bg-selesai-dot' => $step['done'],
-                                'bg-line-strong/50' => ! $step['done'],
-                            ]) aria-hidden="true"></span>
-                            <p @class(['text-sm font-bold', 'text-ink' => $step['done'], 'text-muted' => ! $step['done']])>{{ $step['label'] }}</p>
-                            <p class="text-xs text-muted">{{ $step['at']?->translatedFormat('j M Y, H:i') ?? 'Belum' }}</p>
-                        </li>
-                    @endforeach
-                </ol>
-            </x-ui.card>
+            @include('tickets._timeline', ['ticket' => $ticket])
 
             @if ($ticket->status === \App\Enums\TicketStatus::Menunggu)
                 <x-ui.alert type="warning" title="Menunggu diambil Staff">

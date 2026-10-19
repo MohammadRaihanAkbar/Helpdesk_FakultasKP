@@ -55,6 +55,9 @@ Route::middleware(['auth', 'role:end_user'])->group(function () {
     Route::get('/tickets/{ticket}', [EndUser\TicketController::class, 'show'])->whereNumber('ticket')->name('tickets.show');
     Route::post('/tickets/{ticket}/comments', [EndUser\TicketCommentController::class, 'store'])
         ->whereNumber('ticket')->middleware('throttle:tickets')->name('tickets.comments.store');
+    // Rating CSAT tiket Selesai (US-05), satu kali per tiket.
+    Route::post('/tickets/{ticket}/rating', [EndUser\RatingController::class, 'store'])
+        ->whereNumber('ticket')->middleware('throttle:tickets')->name('tickets.rating.store');
 
     // Riwayat Tiket (US-05): Selesai & Ditolak. Detail memakai halaman yang sama dengan Tiket Saya.
     Route::get('/history', [EndUser\HistoryController::class, 'index'])->name('history.index');

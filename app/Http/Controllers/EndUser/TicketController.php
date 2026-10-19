@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\EndUser;
 
+use App\Enums\TicketStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Tickets\StoreTicketRequest;
 use App\Models\Ticket;
@@ -126,6 +127,7 @@ class TicketController extends Controller
             'publicCount' => $comments->where('is_internal_note', false)->count(),
             'canReply' => Gate::allows('reply', $ticket) && $ticket->isOpen(),
             'canRecreate' => Gate::allows('recreate', $ticket),
+            'canRate' => $ticket->status === TicketStatus::Selesai && $ticket->rating === null && Gate::allows('rate', $ticket),
             'viewer' => $user,
         ]);
     }
