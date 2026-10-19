@@ -41,7 +41,7 @@ class DashboardController extends Controller
             'resolved_today' => $closedSince(TicketStatus::Selesai, $today),
             'rejected_month' => $closedSince(TicketStatus::Ditolak, $month),
             'resolved_month' => $closedSince(TicketStatus::Selesai, $month),
-            'rating_avg' => $ratings->avg('score'),
+            'rating_avg' => $ratings->count() ? round((float) $ratings->avg('score'), 2) : null, // MySQL mengembalikan AVG sebagai teks desimal
             'rating_count' => $ratings->count(),
         ];
         $stats['handled_month'] = $stats['resolved_month'] + $stats['rejected_month'];
