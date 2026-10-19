@@ -14,10 +14,11 @@ Alumni lulusan ≤ 2021 (daftar lewat hidden link) memakai **NIM lama atau email
 
 Dibangun dengan **Laravel 13 + Blade + MySQL**, Alpine.js, Tailwind CSS v4 (Vite). Dokumen acuan: PRD v6.2 dan Rencana Teknis.
 
-> Status: **Milestone 3 (alur Staff + rating)** — di atas M1 (login, registrasi alumni, peran) dan M2 (layanan, staff,
-> buat tiket, thread), sekarang alur tiket sudah lengkap dari awal sampai akhir: Staff melihat antrean sesuai
-> spesialisasi, mengambil tiket, membalas + menulis catatan internal, lalu menutupnya (Selesai dengan bukti / Ditolak
-> dengan alasan), dan pelapor memberi rating. Monitor antrean Admin, Ping, dan laporan menyusul di M4.
+> Status: **Milestone 4 (Admin Fakultas: monitoring, Ping, laporan)** — di atas M1 (login, peran), M2 (layanan, staff,
+> buat tiket, thread), dan M3 (alur Staff + rating). Admin Fakultas sekarang punya dashboard dengan KPI PRD
+> (SLA Compliance, CSAT, Time-to-Claim, Claim Rate, Completion Rate) dan grafik, Monitor Antrean dengan penanda SLA,
+> tombol **Ping / Ingatkan** ke Staff (tercatat di `ping_logs` + notifikasi in-app), serta Laporan & Analitik
+> dengan ekspor **CSV dan Excel**. Super Admin dan email notifikasi menyusul di M5.
 
 ## Fitur yang sudah bisa dipakai
 
@@ -27,12 +28,17 @@ Dibangun dengan **Laravel 13 + Blade + MySQL**, Alpine.js, Tailwind CSS v4 (Vite
 | Pelapor        | `/tickets/new`                            | Fakultas → Kelompok Layanan → Jenis Masalah (sesuai jenis pelapor), judul, deskripsi, lampiran JPG/PNG/PDF (≤ 5 MB, ≤ 3) |
 | Pelapor        | `/tickets`, `/tickets/{id}`               | Tiket Saya (Menunggu/Diproses), detail, linimasa, thread diskusi maks. 20 pesan            |
 | Pelapor        | `/history`, `/history/{id}`               | Riwayat (Selesai/Ditolak), alasan penolakan, bukti penyelesaian, **rating CSAT** 1–5 bintang (sekali), **Buat Ulang Tiket** bila salah fakultas/kategori |
+| Admin Fakultas | `/admin/dashboard`                        | Kartu US-10 (Masuk, Menunggu, Diproses, Selesai Hari Ini, Ditolak Bulan Ini), 5 KPI bulan ini (PRD 1.4), **Tiket Menganggur** + Ping, tren 7 hari, tiket per Kelompok Layanan, performa Staff, "Kelompok tanpa Staff" |
+| Admin Fakultas | `/admin/queue`, `/admin/tickets/{id}`     | **Monitor Antrean**: tiket aktif fakultas (badge SLA merah/kuning, waktu menunggu), filter status/SLA/kategori/jenis pelapor/staff/tanggal, cari; detail **hanya baca** (thread + catatan internal + bukti + rating + riwayat Ping) |
+| Admin Fakultas | `POST /admin/tickets/{id}/ping`           | **Ping / Ingatkan**: Menunggu → semua Staff aktif berspesialisasi kelompok tiket, Diproses → Staff penangan. 1 baris `ping_logs` + 1 notifikasi in-app per staff |
+| Admin Fakultas | `/admin/reports`, `/admin/reports/export` | **Laporan & Analitik**: periode 7/30 hari/custom, filter kategori/staff/status, KPI, volume per hari/minggu/bulan, proporsi kelompok (+ rincian jenis), jenis pelapor, performa Staff, tabel tiket; **Unduh CSV / Excel** dengan kolom PRD US-15 |
 | Admin Fakultas | `/admin/services`                         | Pohon kategori, ubah SLA/deskripsi/On-Off, kategori tambahan (tambah, ubah, hapus)         |
 | Admin Fakultas | `/admin/staff`, `/admin/staff/{id}/specialties` | Buat akun staff, aktif/nonaktif, spesialisasi per Kelompok Layanan, ringkasan "Kelompok tanpa Staff" |
 | Staff          | `/staff/dashboard`                        | 6 kartu (Antrean, Sedang Saya Proses, Selesai Hari Ini, Ditolak & Ditangani Bulan Ini, Rata-rata Rating), tiket Mendekati/Melewati SLA, tiket yang sedang diproses |
 | Staff          | `/staff/queue`                            | Antrean tiket Menunggu sesuai spesialisasi (tertua di atas, badge SLA merah/kuning), filter kelompok/jenis pelapor/tanggal, cari nomor, tombol **Ambil Tiket** |
 | Staff          | `/staff/tickets`, `/staff/tickets/{id}`   | Tiket Saya (Diproses), detail + thread + **Catatan Internal**, **Tandai Selesai** (wajib bukti) / **Tolak** (wajib alasan) dengan dialog konfirmasi |
-| Staff          | `/staff/history`, `/staff/history/{id}`   | Riwayat tiket yang pernah ditangani: filter bulan/status/kelompok, bukti, Sesuai/Melewati SLA, rating pelapor |
+| Staff          | `/staff/history`, `/staff/history/{id}`   | Riwayat tiket yang pernah ditangani: filter **rentang tanggal ditutup**, status, **kategori (kelompok/jenis)**; bukti, Sesuai/Melewati SLA, rating pelapor |
+| Staff          | `/notifications`                          | Teguran **Ping** dari Admin (lonceng di top bar + kotak "Teguran dari Admin" di dashboard); klik = tandai dibaca + buka tiket |
 | Super Admin    | `/super-admin/dashboard`                  | Dashboard kosong (M5)                                                                     |
 
 Lampiran disimpan di `storage/app/private` (tidak bisa dibuka lewat URL publik) dan hanya bisa diunduh
@@ -47,7 +53,7 @@ lewat aplikasi oleh orang yang berhak. Tidak perlu `php artisan storage:link`.
 - [Node.js](https://nodejs.org/) ≥ 20 (untuk Vite)
 - Git
 
-Ekstensi PHP yang dipakai: `pdo_mysql`, `mbstring`, `intl`, `gd`, `zip`, `bcmath`, `curl`, `xml`
+Ekstensi PHP yang dipakai: `pdo_mysql`, `mbstring`, `intl`, `gd`, `zip` (wajib untuk ekspor Excel), `bcmath`, `curl`, `xml`
 (untuk menjalankan test juga `pdo_sqlite`). Di Laragon cek lewat menu **PHP → Extensions**.
 
 ## Cara setup di Laragon
@@ -84,7 +90,8 @@ php artisan key:generate
    ```
 
    Hasilnya: 6 fakultas, 75 kategori layanan (12 standar per fakultas + 3 kategori tambahan contoh di FITK),
-   akun demo, dan 12 tiket contoh di berbagai status (lengkap dengan lampiran, thread, catatan internal, bukti, dan rating).
+   akun demo, 13 tiket contoh di berbagai status (lengkap dengan lampiran, thread, catatan internal, bukti, rating, dan
+   Ping), ditambah ±95 tiket **riwayat 5 bulan terakhir** di FITK & FEBI untuk grafik dan laporan Admin (total ±107 tiket).
    Perintah ini **menghapus semua tabel** lalu membuat ulang, jadi hanya untuk development.
 6. **Jalankan aplikasi** (dua terminal):
 
@@ -111,6 +118,7 @@ Semua password: **`password`**. Login di `/login` (satu kolom untuk NIM / NIDN /
 | Staff FITK              | `staff.dekanat.fitk@uinssc.test`  | Integritas Dosen (kategori sensitif) — nama pelapor disamarkan sampai tiket diambil                       |
 | Staff FITK (nonaktif)   | `staff.cuti.fitk@uinssc.test`     | akun dinonaktifkan: login ditolak (contoh fitur aktif/nonaktif)                                            |
 | Staff FEBI              | `staff.umum.febi@uinssc.test`     | untuk mencoba bahwa Admin FITK tidak bisa menyentuh staff FEBI                                             |
+| Pelapor data laporan    | `siti.aminah@uinssc.test`, dst.   | 7 pelapor tambahan pemilik tiket riwayat (M4). Tidak ada di simulasi SSO, jadi tidak dipakai untuk login. |
 | Mahasiswa (SSO)         | NIM `2210110001`                  | punya 8 tiket demo: menunggu, diproses (ada thread), selesai (ada yang belum dirating), ditolak "salah fakultas/kategori", sensitif |
 | Dosen (SSO)             | NIDN `0412038801`                 | bisa juga dengan NIP `198804122015031001` (akun yang sama)                                                 |
 | Dosen FEBI (SSO)        | NIP `197905152006042001`          | profil SSO tanpa NIDN: tersimpan dengan NIP; akun dibuat otomatis saat login pertama                       |
@@ -161,6 +169,8 @@ atau satu file: `php artisan test --filter=ServiceSettingsTest`.
 | `app/Services/CategoryManager.php`        | Aturan Pengaturan Layanan (kategori standar vs tambahan)                      |
 | `app/Services/StaffSpecialtyService.php`  | Spesialisasi staff + ringkasan "Kelompok tanpa Staff"                        |
 | `app/Services/Tickets`                    | Buat tiket, nomor tiket, lampiran, pilihan kategori, thread, alur staff (`TicketWorkflowService`: ambil/selesai/tolak), rating |
+| `app/Services/Reports`                    | KPI PRD 1.4 (`TicketMetrics`), filter laporan (`ReportFilters`), ekspor CSV/XLSX (`TicketExport`, library openspout) |
+| `app/Services/Tickets/PingService.php`    | Ping / Ingatkan: penerima, `ping_logs`, notifikasi in-app, event `TicketPinged` (untuk email M5) |
 | `app/Policies`                            | Siapa boleh melihat/mengubah apa (tiket, lampiran, kategori, staff)           |
 | `app/Exceptions/BusinessRuleException.php` | Error aturan bisnis berkode PRD (`INVALID_CATEGORY`, `THREAD_LIMIT_REACHED`, ...) |
 | `app/Services/Sso`                        | Login SSO: interface, klien Bridge, klien simulasi, sinkronisasi user         |
