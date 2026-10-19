@@ -121,7 +121,8 @@ class Navigation
 
     /**
      * Daftar menu lengkap per peran sesuai PRD 7.5 (logout ada di menu user, bukan di sini).
-     * Nama route mengikuti rencana teknis; 'match' = pola route lain yang membuat item ini aktif.
+     * Nama route mengikuti rencana teknis; 'match' = pola route lain yang membuat item ini aktif;
+     * 'short' = label pendek untuk bottom nav HP (opsional).
      */
     private static function items(Role $role): array
     {
@@ -130,13 +131,13 @@ class Navigation
                 ['route' => 'dashboard', 'label' => 'Dashboard', 'icon' => 'layout-dashboard'],
                 ['route' => 'tickets.create', 'label' => 'Buat Tiket', 'icon' => 'circle-plus', 'fab' => true],
                 ['route' => 'tickets.index', 'label' => 'Tiket Saya', 'icon' => 'ticket', 'match' => ['tickets.index', 'tickets.show']],
-                ['route' => 'history.index', 'label' => 'Riwayat Tiket', 'icon' => 'history', 'match' => ['history.*']],
+                ['route' => 'history.index', 'label' => 'Riwayat Tiket', 'short' => 'Riwayat', 'icon' => 'history', 'match' => ['history.*']],
             ],
             Role::Staff => [
                 ['route' => 'staff.dashboard', 'label' => 'Dashboard', 'icon' => 'layout-dashboard'],
-                ['route' => 'staff.queue', 'label' => 'Antrean Tiket', 'icon' => 'inbox'],
+                ['route' => 'staff.queue', 'label' => 'Antrean Tiket', 'short' => 'Antrean', 'icon' => 'inbox'],
                 ['route' => 'staff.tickets.index', 'label' => 'Tiket Saya', 'icon' => 'ticket', 'match' => ['staff.tickets.*']],
-                ['route' => 'staff.history', 'label' => 'Riwayat Tiket', 'icon' => 'history', 'match' => ['staff.history', 'staff.history.*']],
+                ['route' => 'staff.history', 'label' => 'Riwayat Tiket', 'short' => 'Riwayat', 'icon' => 'history', 'match' => ['staff.history', 'staff.history.*']],
             ],
             Role::Admin => [
                 ['route' => 'admin.dashboard', 'label' => 'Dashboard', 'icon' => 'layout-dashboard'],

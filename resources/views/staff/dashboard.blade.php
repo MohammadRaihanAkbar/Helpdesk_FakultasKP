@@ -17,7 +17,7 @@
 
 <x-layouts.app title="Dashboard Staff">
     <x-dashboard-greeting :user="$user">
-        {{ $user->role->label() }} {{ $user->faculty?->name }}.
+        Anda bertugas di {{ $user->faculty?->name ?? 'fakultas yang belum ditentukan' }}.
         @if ($user->specialties->isEmpty())
             Anda belum memiliki spesialisasi layanan, jadi antrean Anda kosong. Hubungi Admin Fakultas.
         @else

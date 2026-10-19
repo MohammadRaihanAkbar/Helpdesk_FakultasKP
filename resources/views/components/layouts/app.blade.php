@@ -216,7 +216,8 @@
                                'font-semibold text-muted' => ! $item['active'],
                            ])>
                             <x-icon :name="$item['icon']" />
-                            <span class="max-w-full truncate">{{ $item['label'] }}</span>
+                            {{-- 'short' = label pendek khusus bottom nav HP (mis. "Antrean"), supaya tidak terpotong. --}}
+                            <span class="max-w-full truncate">{{ $item['short'] ?? $item['label'] }}</span>
                         </a>
                     @endif
                 </li>
