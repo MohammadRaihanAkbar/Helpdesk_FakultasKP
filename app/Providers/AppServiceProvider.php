@@ -8,6 +8,7 @@ use App\Services\Sso\SsoClient;
 use Carbon\Carbon;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
@@ -45,6 +46,9 @@ class AppServiceProvider extends ServiceProvider
         // Aturan password default untuk Password::defaults() (registrasi alumni, akun staff di M4).
         Password::defaults(fn () => Password::min(8));
 
+        // Tampilan navigasi halaman sendiri (resources/views/pagination.blade.php) yang memakai warna tema.
+        Paginator::defaultView('pagination');
+
         $this->configureRateLimiting();
     }
 
@@ -65,5 +69,9 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('login', fn (Request $request) => Limit::perMinute(60)->by($request->ip()));
 
         RateLimiter::for('alumni-registration', fn (Request $request) => Limit::perMinute(6)->by($request->ip()));
+
+        // Kirim tiket & balasan thread: 30/menit per AKUN (bukan per IP, karena Wi-Fi kampus berbagi IP).
+        // Cukup longgar untuk pemakaian wajar, tapi menahan skrip yang membanjiri antrean.
+        RateLimiter::for('tickets', fn (Request $request) => Limit::perMinute(30)->by($request->user()?->id ?: $request->ip()));
     }
 }

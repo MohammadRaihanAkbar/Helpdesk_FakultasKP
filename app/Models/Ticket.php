@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -31,6 +32,16 @@ use Illuminate\Support\Facades\DB;
 class Ticket extends Model
 {
     use HasFactory;
+
+    /** Batas pesan PUBLIK per tiket (gabungan pelapor + staff). Catatan internal tidak dihitung (PRD 8.2 tabel 7). */
+    public const THREAD_LIMIT = 20;
+
+    /**
+     * Alasan penolakan BAKU (F-TKS-05). Tiket yang ditolak dengan alasan ini boleh "Buat Ulang Tiket" (US-05):
+     * /tickets/new?from={id} membuka form baru dengan data tiket lama.
+     * Staff (M3) menyimpan alasan ini apa adanya, boleh diikuti keterangan: "Salah fakultas/kategori: seharusnya ke FEBI".
+     */
+    public const REJECTION_WRONG_TARGET = 'Salah fakultas/kategori';
 
     protected function casts(): array
     {
@@ -73,6 +84,12 @@ class Ticket extends Model
     public function comments(): HasMany
     {
         return $this->hasMany(Comment::class);
+    }
+
+    /** Pesan publik saja (yang dihitung dalam batas 20 pesan dan terlihat oleh pelapor). */
+    public function publicComments(): HasMany
+    {
+        return $this->comments()->where('is_internal_note', false);
     }
 
     /** Lampiran form awal tiket (attachments.ticket_id). Lampiran pesan thread ada di Comment. */
@@ -151,5 +168,50 @@ class Ticket extends Model
                     StaffSpecialty::query()->select('category_id')->where('staff_id', $staff->id)
                 );
             });
+    }
+
+    // ------------------------------------------------------------------
+    // Helper
+    // ------------------------------------------------------------------
+
+    /** Kelompok Layanan tiket (induk kategori leaf, atau kategori itu sendiri). */
+    public function group(): Category
+    {
+        return $this->category->group();
+    }
+
+    public function isOpen(): bool
+    {
+        return $this->status->isOpen();
+    }
+
+    /** Ditolak dengan alasan baku "Salah fakultas/kategori" -> boleh dibuat ulang (US-05, F-TKU-09). */
+    public function isRejectedForWrongTarget(): bool
+    {
+        return $this->status === TicketStatus::Ditolak
+            && str_starts_with((string) $this->rejection_reason, self::REJECTION_WRONG_TARGET);
+    }
+
+    /**
+     * Linimasa riwayat aktivitas (US-04, PRD 8.2 tabel 6):
+     *   Dibuat -> Diambil Staff (+ nama) -> Respons pertama -> Selesai/Ditolak.
+     * Langkah yang belum terjadi tetap dikembalikan dengan 'at' = null supaya pelapor tahu tahap berikutnya.
+     *
+     * @return list<array{label: string, at: ?Carbon, done: bool}>
+     */
+    public function timeline(): array
+    {
+        $closedLabel = match ($this->status) {
+            TicketStatus::Selesai => 'Selesai',
+            TicketStatus::Ditolak => 'Ditolak',
+            default => 'Selesai / Ditolak',
+        };
+
+        return [
+            ['label' => 'Tiket dibuat', 'at' => $this->created_at, 'done' => true],
+            ['label' => $this->handler ? 'Diambil oleh '.$this->handler->name : 'Diambil Staff', 'at' => $this->assigned_at, 'done' => $this->assigned_at !== null],
+            ['label' => 'Respons pertama Staff', 'at' => $this->first_responded_at, 'done' => $this->first_responded_at !== null],
+            ['label' => $closedLabel, 'at' => $this->resolved_at, 'done' => $this->resolved_at !== null],
+        ];
     }
 }

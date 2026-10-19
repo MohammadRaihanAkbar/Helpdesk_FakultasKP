@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin;
 use App\Http\Controllers\Auth\AlumniRegistrationController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\EndUser;
+use App\Http\Controllers\FileController;
 use App\Http\Controllers\Staff;
 use App\Http\Controllers\SuperAdmin;
 use App\Http\Middleware\EnsureAlumniRegistrationKey;
@@ -46,6 +47,24 @@ Route::post('/logout', [LoginController::class, 'destroy'])->middleware('auth')-
 // ---------- End-User (Pelapor) ----------
 Route::middleware(['auth', 'role:end_user'])->group(function () {
     Route::get('/dashboard', EndUser\DashboardController::class)->name('dashboard');
+
+    // Tiket Saya (US-03, US-04). /tickets/new harus di atas /tickets/{ticket}, dan {ticket} hanya angka.
+    Route::get('/tickets', [EndUser\TicketController::class, 'index'])->name('tickets.index');
+    Route::get('/tickets/new', [EndUser\TicketController::class, 'create'])->name('tickets.create');
+    Route::post('/tickets', [EndUser\TicketController::class, 'store'])->middleware('throttle:tickets')->name('tickets.store');
+    Route::get('/tickets/{ticket}', [EndUser\TicketController::class, 'show'])->whereNumber('ticket')->name('tickets.show');
+    Route::post('/tickets/{ticket}/comments', [EndUser\TicketCommentController::class, 'store'])
+        ->whereNumber('ticket')->middleware('throttle:tickets')->name('tickets.comments.store');
+
+    // Riwayat Tiket (US-05): Selesai & Ditolak. Detail memakai halaman yang sama dengan Tiket Saya.
+    Route::get('/history', [EndUser\HistoryController::class, 'index'])->name('history.index');
+    Route::get('/history/{ticket}', [EndUser\TicketController::class, 'show'])->whereNumber('ticket')->name('history.show');
+});
+
+// ---------- Berkas privat (semua peran; izin dicek per berkas di policy) ----------
+Route::middleware('auth')->group(function () {
+    Route::get('/attachments/{attachment}', [FileController::class, 'attachment'])->whereNumber('attachment')->name('attachments.show');
+    Route::get('/proofs/{proof}', [FileController::class, 'proof'])->whereNumber('proof')->name('proofs.show');
 });
 
 // ---------- Staff Fakultas ----------

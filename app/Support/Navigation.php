@@ -11,8 +11,11 @@ use Illuminate\Support\Facades\Route;
  *
  * Layout aplikasi (sidebar, laci tablet, dan bottom nav HP) membaca menu dari sini.
  * Sebuah item hanya tampil kalau route-nya sudah ada (Route::has), jadi menu ikut
- * bertambah sendiri ketika route baru ditambahkan di milestone berikutnya. Di M1
- * baru "Dashboard" yang punya route. Hal yang sama berlaku untuk kotak pencarian di top bar.
+ * bertambah sendiri ketika route baru ditambahkan di milestone berikutnya. Hal yang sama
+ * berlaku untuk kotak pencarian di top bar.
+ *
+ * Status per M2: pelapor sudah punya Dashboard, Buat Tiket, Tiket Saya, Riwayat Tiket;
+ * Admin Fakultas sudah punya Kelola Staff & Pengaturan Layanan. Sisanya menyusul (M3+).
  */
 class Navigation
 {
@@ -47,7 +50,7 @@ class Navigation
     /**
      * Item menu yang boleh dilihat user, beserta status aktifnya.
      *
-     * @return list<array{route: string, label: string, icon: string, url: string, active: bool}>
+     * @return list<array{route: string, label: string, icon: string, url: string, count: ?int, active: bool}>
      */
     public static function for(User $user): array
     {
@@ -60,12 +63,25 @@ class Navigation
 
             $items[] = $item + [
                 'url' => route($item['route']),
+                'count' => self::count($user, $item['route']),
                 // routeIs() menerima pola, mis. 'tickets.*' untuk semua halaman tiket.
                 'active' => request()->routeIs(...($item['match'] ?? [$item['route']])),
             ];
         }
 
         return $items;
+    }
+
+    /**
+     * Angka kecil di samping menu. Saat ini: jumlah tiket aktif (Menunggu + Diproses) di "Tiket Saya".
+     * null = tidak ada angka.
+     */
+    private static function count(User $user, string $route): ?int
+    {
+        return match ($route) {
+            'tickets.index' => $user->reportedTickets()->open()->count(),
+            default => null,
+        };
     }
 
     /**
@@ -108,7 +124,7 @@ class Navigation
                 ['route' => 'dashboard', 'label' => 'Dashboard', 'icon' => 'layout-dashboard'],
                 ['route' => 'tickets.create', 'label' => 'Buat Tiket', 'icon' => 'circle-plus', 'fab' => true],
                 ['route' => 'tickets.index', 'label' => 'Tiket Saya', 'icon' => 'ticket', 'match' => ['tickets.index', 'tickets.show']],
-                ['route' => 'history.index', 'label' => 'Riwayat Tiket', 'icon' => 'history'],
+                ['route' => 'history.index', 'label' => 'Riwayat Tiket', 'icon' => 'history', 'match' => ['history.*']],
             ],
             Role::Staff => [
                 ['route' => 'staff.dashboard', 'label' => 'Dashboard', 'icon' => 'layout-dashboard'],

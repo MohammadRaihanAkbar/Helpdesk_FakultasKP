@@ -1,0 +1,203 @@
+{{--
+    Detail Tiket + Linimasa + Thread (/tickets/{id} dan /history/{id}) — PRD 10.5, US-04, US-05.
+
+    - Linimasa: Dibuat -> Diambil Staff (+ nama) -> Respons pertama -> Selesai/Ditolak.
+    - Thread: maks. 20 pesan publik. Pelapor TIDAK PERNAH melihat catatan internal (difilter di controller).
+      Pesan staff diberi label "Staff" dan warna berbeda.
+    - Tiket ditutup: alasan penolakan / bukti penyelesaian; tombol "Buat Ulang Tiket" bila ditolak karena salah fakultas/kategori.
+--}}
+@php
+    $limit = \App\Models\Ticket::THREAD_LIMIT;
+    $full = $publicCount >= $limit;
+    $backRoute = $ticket->isOpen() ? route('tickets.index') : route('history.index');
+@endphp
+
+<x-layouts.app :title="$ticket->ticket_number">
+    <a href="{{ $backRoute }}" class="mb-3 inline-flex min-h-10 items-center gap-1.5 text-sm font-semibold text-primary hover:underline">
+        <x-icon name="arrow-left" class="size-4" /> Kembali ke {{ $ticket->isOpen() ? 'Tiket Saya' : 'Riwayat Tiket' }}
+    </a>
+
+    <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
+        <div class="min-w-0 space-y-4">
+            {{-- Ringkasan tiket --}}
+            <x-ui.card>
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="font-mono font-semibold text-accent-ink">{{ $ticket->ticket_number }}</span>
+                    <x-ui.badge :status="$ticket->status" />
+                    @if ($ticket->category->isSensitive())
+                        <x-ui.badge tone="danger">Sensitif</x-ui.badge>
+                    @endif
+                </div>
+                <h1 class="mt-2 text-xl font-extrabold text-ink md:text-2xl">{{ $ticket->title }}</h1>
+
+                <dl class="mt-4 grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
+                    <div><dt class="text-muted">Fakultas tujuan</dt><dd class="font-semibold">{{ $ticket->faculty->code }} — {{ $ticket->faculty->name }}</dd></div>
+                    <div><dt class="text-muted">Kategori</dt><dd class="font-semibold">{{ $ticket->category->pathLabel() }}</dd></div>
+                    <div><dt class="text-muted">Target SLA</dt><dd class="font-mono font-semibold">{{ $ticket->sla_target_hours }} jam</dd></div>
+                    <div><dt class="text-muted">Dibuat</dt><dd class="font-semibold">{{ $ticket->created_at->translatedFormat('j M Y, H:i') }}</dd></div>
+                    <div class="sm:col-span-2">
+                        <dt class="text-muted">Ditangani oleh</dt>
+                        <dd class="font-semibold">
+                            @if ($ticket->handler)
+                                {{ $ticket->handler->name }}
+                            @else
+                                <span class="text-menunggu-fg">Menunggu diambil Staff</span>
+                            @endif
+                        </dd>
+                    </div>
+                </dl>
+
+                <div class="mt-5 border-t border-line pt-4">
+                    <h2 class="text-sm font-extrabold text-ink">Deskripsi</h2>
+                    <p class="mt-1.5 text-[15px] leading-relaxed whitespace-pre-line text-ink">{{ $ticket->description }}</p>
+                </div>
+
+                @if ($ticket->attachments->isNotEmpty())
+                    <div class="mt-4">
+                        <h2 class="text-sm font-extrabold text-ink">Lampiran</h2>
+                        @include('enduser.tickets._files', ['files' => $ticket->attachments, 'route' => 'attachments.show'])
+                    </div>
+                @endif
+            </x-ui.card>
+
+            {{-- Hasil penanganan (tiket ditutup) --}}
+            @if ($ticket->status === \App\Enums\TicketStatus::Ditolak)
+                <x-ui.card title="Alasan penolakan">
+                    <p class="text-[15px] whitespace-pre-line text-ditolak-fg">{{ $ticket->rejection_reason }}</p>
+                    @if ($canRecreate)
+                        <div class="mt-4 flex flex-col gap-3 rounded-control bg-sunken/60 p-4 sm:flex-row sm:items-center sm:justify-between">
+                            <p class="text-sm text-muted">Tiket ini salah tujuan. Buat tiket baru dengan data yang sama, lalu perbaiki fakultas/kategorinya.</p>
+                            <x-ui.button :href="route('tickets.create', ['from' => $ticket->id])" icon="refresh" class="shrink-0">Buat Ulang Tiket</x-ui.button>
+                        </div>
+                    @endif
+                </x-ui.card>
+            @elseif ($ticket->status === \App\Enums\TicketStatus::Selesai)
+                <x-ui.card title="Bukti penyelesaian" description="Diunggah staff saat menutup tiket.">
+                    @if ($ticket->resolutionProofs->isEmpty())
+                        <p class="text-sm text-muted">Tidak ada berkas bukti.</p>
+                    @else
+                        @include('enduser.tickets._files', ['files' => $ticket->resolutionProofs, 'route' => 'proofs.show'])
+                    @endif
+                    @if ($ticket->rating)
+                        <div class="mt-4 border-t border-line pt-4 text-sm">
+                            <p class="font-bold">Penilaian Anda</p>
+                            <p class="mt-1 flex items-center gap-1 text-accent" aria-label="{{ $ticket->rating->score }} dari 5 bintang">
+                                @for ($i = 1; $i <= 5; $i++)
+                                    <x-icon name="star" @class(['size-5', 'fill-current' => $i <= $ticket->rating->score, 'text-line-strong' => $i > $ticket->rating->score]) />
+                                @endfor
+                            </p>
+                            @if ($ticket->rating->comment)
+                                <p class="mt-1 text-muted">"{{ $ticket->rating->comment }}"</p>
+                            @endif
+                        </div>
+                    @endif
+                </x-ui.card>
+            @endif
+
+            {{-- Thread diskusi --}}
+            <x-ui.card id="thread">
+                <header class="mb-4 flex items-center justify-between gap-3">
+                    <h2 class="text-[17px] font-extrabold text-ink">Thread Diskusi</h2>
+                    <span @class(['rounded-full px-2.5 py-0.5 font-mono text-xs font-semibold', 'bg-sunken text-ink' => ! $full, 'bg-ditolak-bg text-ditolak-fg' => $full])>{{ $publicCount }}/{{ $limit }} pesan</span>
+                </header>
+
+                @if ($comments->isEmpty())
+                    <p class="rounded-control bg-sunken/60 px-4 py-6 text-center text-sm text-muted">
+                        Belum ada pesan. {{ $ticket->isOpen() ? 'Gunakan thread ini untuk menambah informasi atau menjawab pertanyaan staff.' : '' }}
+                    </p>
+                @else
+                    <ol class="space-y-3">
+                        @foreach ($comments as $comment)
+                            @php
+                                $mine = $comment->user_id === $viewer->id;
+                                $fromStaff = $comment->user->isStaff();
+                            @endphp
+                            <li @class([
+                                'rounded-card border px-4 py-3',
+                                'border-accent/40 bg-accent-soft' => $comment->is_internal_note,
+                                'border-diproses-dot/30 bg-diproses-bg' => ! $comment->is_internal_note && $fromStaff,
+                                'border-line bg-surface' => ! $comment->is_internal_note && ! $fromStaff,
+                                'sm:ml-10' => $mine,
+                                'sm:mr-10' => ! $mine,
+                            ])>
+                                <div class="flex flex-wrap items-center gap-2 text-sm">
+                                    <span class="font-bold text-ink">{{ $mine ? 'Anda' : $comment->user->name }}</span>
+                                    @if ($comment->is_internal_note)
+                                        <x-ui.badge tone="warning">Catatan Internal</x-ui.badge>
+                                    @elseif ($fromStaff)
+                                        <x-ui.badge tone="info">Staff</x-ui.badge>
+                                    @endif
+                                    <span class="text-xs text-muted">{{ $comment->created_at->translatedFormat('j M Y, H:i') }}</span>
+                                </div>
+                                <p class="mt-1.5 text-[15px] leading-relaxed whitespace-pre-line text-ink">{{ $comment->body }}</p>
+                                @if ($comment->attachments->isNotEmpty())
+                                    @include('enduser.tickets._files', ['files' => $comment->attachments, 'route' => 'attachments.show'])
+                                @endif
+                            </li>
+                        @endforeach
+                    </ol>
+                @endif
+
+                <div class="mt-5 border-t border-line pt-5">
+                    @if (! $ticket->isOpen())
+                        <x-ui.alert type="info">Tiket sudah ditutup, thread tidak dapat dibalas lagi.</x-ui.alert>
+                    @elseif ($full)
+                        <x-ui.alert type="warning">Batas diskusi tercapai ({{ $limit }}/{{ $limit }} pesan). Hubungi staf secara langsung jika diperlukan.</x-ui.alert>
+                    @elseif ($canReply)
+                        <form method="POST" action="{{ route('tickets.comments.store', $ticket) }}" enctype="multipart/form-data" class="space-y-3"
+                              x-data="{ files: [] }">
+                            @csrf
+                            <x-ui.textarea name="body" label="Balas pesan" :maxlength="\App\Http\Requests\Tickets\StoreCommentRequest::BODY_MAX" rows="3"
+                                           placeholder="Ketik pesan…" required />
+                            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                <div class="min-w-0">
+                                    <label for="reply-files" class="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-control border border-line bg-surface px-3 text-sm font-semibold shadow-sm hover:bg-sunken">
+                                        <x-icon name="paperclip" class="size-4" /> Lampirkan berkas
+                                    </label>
+                                    <input id="reply-files" name="attachments[]" type="file" multiple accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"
+                                           class="sr-only" @change="files = Array.from($event.target.files).map(f => f.name)">
+                                    <span class="ml-2 text-sm text-muted" x-text="files.join(', ')"></span>
+                                    <p class="mt-1 text-xs text-muted">JPG/PNG/PDF, maks. 5 MB, maks. 3 berkas.</p>
+                                    @foreach (array_merge($errors->get('attachments'), $errors->get('attachments.*')) as $messages)
+                                        @foreach ((array) $messages as $message)
+                                            <p class="mt-1 text-sm text-ditolak-fg">{{ $message }}</p>
+                                        @endforeach
+                                    @endforeach
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <span class="font-mono text-xs text-muted">{{ $publicCount }}/{{ $limit }} pesan</span>
+                                    <x-ui.button type="submit" icon="send">Kirim</x-ui.button>
+                                </div>
+                            </div>
+                        </form>
+                    @endif
+                </div>
+            </x-ui.card>
+        </div>
+
+        {{-- Linimasa --}}
+        <aside class="space-y-4">
+            <x-ui.card title="Riwayat Aktivitas">
+                <ol class="relative space-y-5 border-l-2 border-line pl-5">
+                    @foreach ($ticket->timeline() as $step)
+                        <li class="relative">
+                            <span @class([
+                                'absolute top-1 -left-[27px] size-3 rounded-full ring-4 ring-surface',
+                                'bg-selesai-dot' => $step['done'],
+                                'bg-line-strong/50' => ! $step['done'],
+                            ]) aria-hidden="true"></span>
+                            <p @class(['text-sm font-bold', 'text-ink' => $step['done'], 'text-muted' => ! $step['done']])>{{ $step['label'] }}</p>
+                            <p class="text-xs text-muted">{{ $step['at']?->translatedFormat('j M Y, H:i') ?? 'Belum' }}</p>
+                        </li>
+                    @endforeach
+                </ol>
+            </x-ui.card>
+
+            @if ($ticket->status === \App\Enums\TicketStatus::Menunggu)
+                <x-ui.alert type="warning" title="Menunggu diambil Staff">
+                    Tiket tidak punya batas kedaluwarsa. Target SLA {{ $ticket->sla_target_hours }} jam menjadi acuan staff fakultas.
+                </x-ui.alert>
+            @endif
+        </aside>
+    </div>
+</x-layouts.app>
