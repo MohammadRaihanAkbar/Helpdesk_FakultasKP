@@ -189,11 +189,30 @@ class DatabaseSeederTest extends TestCase
         $this->assertSame(1, $akademik->inAppNotifications()->where('is_read', false)->count());
 
         // Setiap Ping demo tercatat juga sebagai notifikasi in-app untuk staff penerimanya.
-        $this->assertSame(PingLog::count(), Notification::where('type', 'in_app')->count());
+        $this->assertSame(PingLog::count(), Notification::where('type', 'in_app')->where('subject', 'like', 'Ping dari Admin%')->count());
 
         // Nomor tiket tetap urut sesuai tanggal dibuat dalam setiap bulan.
         foreach (Ticket::orderBy('created_at')->orderBy('id')->get()->groupBy(fn (Ticket $t) => $t->created_at->format('Ym')) as $tickets) {
             $this->assertSame(range(1, $tickets->count()), $tickets->map(fn (Ticket $t) => (int) substr($t->ticket_number, -4))->all());
         }
+    }
+
+    public function test_demo_data_covers_m5_screens(): void
+    {
+        // Super Admin + Admin di setiap fakultas; dosen demo memakai NIP (kolom nip).
+        $this->assertSame(1, User::where('role', Role::SuperAdmin)->count());
+        $this->assertSame(Faculty::count(), User::where('role', Role::Admin)->distinct()->count('faculty_id'));
+        $this->assertSame('198804122015031001', User::where('email', 'dosen@uinssc.test')->value('nip'));
+        $this->assertSame(0, User::where('user_type', UserType::Dosen)->whereNull('nip')->count());
+
+        // Pelapor demo punya balasan Staff yang belum dibaca -> "Balasan baru" di dashboard.
+        $mahasiswa = User::where('email', 'mahasiswa@uinssc.test')->first();
+        $unread = $mahasiswa->inAppNotifications()->where('is_read', false)->get();
+        $this->assertCount(1, $unread);
+        $this->assertStringStartsWith('Balasan baru dari Staff: TKT-', $unread->first()->subject);
+        $this->assertSame($mahasiswa->id, $unread->first()->ticket->reporter_id);
+
+        $this->actingAs($mahasiswa)->get('/dashboard')->assertOk()->assertSee('Balasan baru')->assertSee('Performa SLA Fakultas');
+        $this->actingAs(User::where('role', Role::SuperAdmin)->first())->get('/super-admin/dashboard')->assertOk()->assertSee('Celah Coverage Staff');
     }
 }

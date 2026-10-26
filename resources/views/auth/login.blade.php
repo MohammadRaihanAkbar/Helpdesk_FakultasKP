@@ -1,5 +1,5 @@
 {{--
-    Halaman login (PRD 10.1, mockup design/a-login.png). Satu kolom untuk NIM / NIDN / Email,
+    Halaman login (PRD 10.1, mockup design/a-login.png). Satu kolom untuk NIM / NIP / Email,
     lihat App\Services\Auth\LoginService.
 
     Semua pesan gagal login (password salah, SSO tidak bisa dihubungi, akun nonaktif, terlalu banyak
@@ -26,9 +26,9 @@
 
         <x-ui.input
             name="login"
-            label="NIM / NIDN / Email"
+            label="NIM / NIP / Email"
             icon="user"
-            hint="Mahasiswa & alumni lulus 2022 ke atas: NIM. Dosen: NIDN atau NIP. Alumni lulus 2021 ke bawah: NIM lama atau email yang didaftarkan. Staff & admin: email."
+            hint="Mahasiswa & alumni lulus 2022 ke atas: NIM. Dosen: NIP. Alumni lulus 2021 ke bawah: NIM lama atau email yang didaftarkan. Staff & admin: email."
             autocomplete="username"
             autocapitalize="none"
             spellcheck="false"

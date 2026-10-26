@@ -18,12 +18,16 @@ use Throwable;
  *   - Catatan internal (is_internal_note) TIDAK dihitung dan tetap bisa dikirim walau thread publik penuh.
  *   - Tiket yang sudah ditutup (Selesai/Ditolak) tidak bisa dibalas -> THREAD_CLOSED (409).
  *   - Balasan publik PERTAMA dari staff penangan mengisi tickets.first_responded_at (dipakai di M3).
+ *   - [M5] Balasan Staff -> email + lonceng ke pelapor; pesan publik ke-20 -> email batas thread (TicketNotifier).
  *
  * Siapa yang boleh mengirim dicek lebih dulu oleh TicketPolicy::reply (controller).
  */
 class CommentService
 {
-    public function __construct(private readonly AttachmentStorage $storage) {}
+    public function __construct(
+        private readonly AttachmentStorage $storage,
+        private readonly TicketNotifier $notifier,
+    ) {}
 
     /** Sisa kuota pesan publik, mis. untuk penghitung "12/20 pesan". */
     public function publicCount(Ticket $ticket): int
@@ -51,7 +55,7 @@ class CommentService
                 $stored[] = $this->storage->store($file);
             }
 
-            return DB::transaction(function () use ($ticket, $author, $body, $internal, $stored) {
+            $comment = DB::transaction(function () use ($ticket, $author, $body, $internal, $stored) {
                 // Kunci baris tiket: dua orang yang mengirim pesan ke-20 bersamaan diproses bergantian,
                 // jadi hitungan di bawah tidak bisa "kebobolan" menjadi 21.
                 $locked = Ticket::whereKey($ticket->id)->lockForUpdate()->firstOrFail();
@@ -80,5 +84,10 @@ class CommentService
             $this->storage->discard($stored);
             throw $e;
         }
+
+        // Di luar try: pesan sudah tersimpan, jadi masalah notifikasi tidak boleh menghapus lampirannya.
+        $this->notifier->commentPosted($ticket, $comment->setRelation('user', $author));
+
+        return $comment;
     }
 }

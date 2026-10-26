@@ -93,13 +93,14 @@ return [
     | (mis. "graduation_year wajib diisi" -> "tahun lulus wajib diisi").
     */
     'attributes' => [
-        'login' => 'NIM / NIDN / Email',
+        'login' => 'NIM / NIP / Email',
         'name' => 'nama',
         'email' => 'email',
         'password' => 'password',
         'password_confirmation' => 'konfirmasi password',
         'nim' => 'NIM',
         'nidn' => 'NIDN',
+        'nip' => 'NIP',
         'graduation_year' => 'tahun lulus',
         'origin_faculty_id' => 'fakultas asal',
         'faculty_id' => 'fakultas',

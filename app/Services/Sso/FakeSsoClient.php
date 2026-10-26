@@ -33,11 +33,10 @@ class FakeSsoClient implements SsoClient
     /**
      * Cari pengguna simulasi berdasarkan username yang diketik.
      *
-     * 1. Kunci array fake_users (NIM / NIDN / NIP yang ditulis sebagai kunci).
-     * 2. Kalau tidak ada: cocokkan dengan field NIDN atau NIP di isi profilnya. Ini meniru asumsi
-     *    bahwa Bridge menerima NIP maupun NIDN untuk akun dosen yang sama, sehingga
-     *    "Dr. Budi Dosen" bisa login dengan NIDN 0412038801 atau NIP 198804122015031001.
-     *    (Apakah Bridge kampus benar menerima NIDN masih perlu dikonfirmasi, lihat docs/SSO.md.)
+     * 1. Kunci array fake_users (NIM / NIP / NIDN yang ditulis sebagai kunci).
+     * 2. Kalau tidak ada: cocokkan dengan field NIP atau NIDN di isi profilnya. Dosen diidentifikasi dengan NIP
+     *    (keputusan M5), tetapi NIDN tetap diterima supaya "Dr. Budi Dosen" bisa login dengan NIP
+     *    198804122015031001 maupun NIDN 0412038801. (Apakah Bridge kampus menerima NIDN belum pasti, lihat docs/SSO.md.)
      */
     private function findUser(string $username): ?array
     {

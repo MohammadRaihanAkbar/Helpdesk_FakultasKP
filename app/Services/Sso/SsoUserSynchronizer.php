@@ -3,6 +3,7 @@
 namespace App\Services\Sso;
 
 use App\Enums\Role;
+use App\Enums\UserType;
 use App\Models\Faculty;
 use App\Models\User;
 use Illuminate\Support\Str;
@@ -11,7 +12,7 @@ use Illuminate\Support\Str;
  * Menyalin data profil SSO ke tabel users (buat baru atau perbarui), setiap kali login SSO.
  *
  * Aturan (rencana teknis 3.1, PRD US-01):
- *   - Cari user berdasarkan NIM (mahasiswa/alumni) atau NIDN (dosen; NIP sebagai cadangan).
+ *   - Cari user berdasarkan NIM (mahasiswa/alumni) atau NIP (dosen; NIDN juga dicocokkan, lihat findExisting()).
  *   - Selalu sinkronkan: nama, email, user_type, graduation_year, program_studi, origin_faculty_id.
  *     -> mahasiswa yang sudah lulus otomatis berubah menjadi alumni.
  *   - TIDAK PERNAH mengubah role dan faculty_id. Dosen yang ditunjuk Super Admin menjadi
@@ -23,13 +24,7 @@ class SsoUserSynchronizer
 {
     public function sync(SsoProfile $profile): User
     {
-        $column = $profile->identifierColumn();   // 'nim' atau 'nidn'
-        $identifier = $profile->identifier();
-
-        // Cari akun lama: utamakan yang nomornya persis sama, lalu nomor lain milik orang yang sama
-        // (dosen: NIDN atau NIP, lihat SsoProfile::identifierCandidates()).
-        $user = User::where($column, $identifier)->first()
-            ?? User::whereIn($column, $profile->identifierCandidates())->first();
+        $user = $this->findExisting($profile);
 
         if ($user === null) {
             // Akun baru: nilai yang hanya diisi SEKALI saat dibuat
@@ -40,9 +35,12 @@ class SsoUserSynchronizer
             ]);
         }
 
-        // Identitas selalu mengikuti SSO. Contoh: dosen yang dulu tersimpan dengan NIP
-        // berganti ke NIDN begitu profil SSO-nya memuat NIDN.
-        $user->{$column} = $identifier;
+        // Identitas selalu mengikuti SSO.
+        if ($profile->userType === UserType::Dosen) {
+            $this->syncLecturerIds($user, $profile);
+        } else {
+            $user->nim = $profile->nim;
+        }
 
         // Akun ini dulu didaftarkan lewat hidden link alumni, tetapi NIM-nya ternyata dimiliki
         // pengguna SSO yang sah. Password lokal hasil registrasi dibuang (diganti acak), supaya
@@ -73,8 +71,46 @@ class SsoUserSynchronizer
     }
 
     /**
+     * Cari akun lama milik orang yang sama.
+     *
+     * Mahasiswa/alumni: kolom nim. Dosen: utamakan NIP yang persis sama, lalu NIDN, lalu semua nomor yang
+     * diketahui (NIP, NIDN, yang diketik) di kolom nip MAUPUN nidn. Langkah terakhir ini menemukan akun dari
+     * M1–M4 yang masih menyimpan NIP di kolom nidn, jadi tidak ada akun kedua untuk dosen yang sama.
+     */
+    private function findExisting(SsoProfile $profile): ?User
+    {
+        if ($profile->userType !== UserType::Dosen) {
+            return User::where('nim', $profile->nim)->first();
+        }
+
+        $candidates = $profile->identifierCandidates();
+
+        return ($profile->nip ? User::where('nip', $profile->nip)->first() : null)
+            ?? ($profile->nidn ? User::where('nidn', $profile->nidn)->first() : null)
+            ?? User::where(fn ($query) => $query->whereIn('nip', $candidates)->orWhereIn('nidn', $candidates))->first();
+    }
+
+    /**
+     * NIP ke kolom nip, NIDN ke kolom nidn (hanya kalau SSO mengirim NIDN).
+     * Nomor yang tidak dikirim SSO kali ini dibiarkan (tidak dihapus), KECUALI sisa data lama:
+     * NIP yang dulu tersimpan di kolom nidn dipindah, supaya satu nomor tidak tercatat dua kali.
+     */
+    private function syncLecturerIds(User $user, SsoProfile $profile): void
+    {
+        if ($profile->nip !== null) {
+            $user->nip = $profile->nip;
+        }
+
+        if ($profile->nidn !== null) {
+            $user->nidn = $profile->nidn;
+        } elseif ($user->nidn !== null && $user->nidn === $user->nip) {
+            $user->nidn = null;
+        }
+    }
+
+    /**
      * Email dari SSO jika ada dan belum dipakai akun lain.
-     * Kalau kosong: pakai email lama (user lama) atau {nim|nidn}@{domain pengganti}.
+     * Kalau kosong: pakai email lama (user lama) atau {nim|nip}@{domain pengganti}.
      */
     private function resolveEmail(SsoProfile $profile, User $user): string
     {

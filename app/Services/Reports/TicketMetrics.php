@@ -5,6 +5,7 @@ namespace App\Services\Reports;
 use App\Enums\TicketStatus;
 use App\Enums\UserType;
 use App\Models\Category;
+use App\Models\Faculty;
 use App\Models\Ticket;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
@@ -13,6 +14,7 @@ use Illuminate\Support\Collection;
 
 /**
  * Perhitungan KPI helpdesk sesuai PRD 1.4 & US-15, untuk dashboard dan laporan Admin Fakultas.
+ * Sejak M5 juga dipakai TANPA filter fakultas: metrik global Super Admin (F-SPA-03).
  *
  * Semua angka dihitung dari KOLOM WAKTU tabel tickets (+ skor di ratings), tanpa tabel tambahan:
  *
@@ -31,9 +33,22 @@ use Illuminate\Support\Collection;
  */
 class TicketMetrics
 {
+    /** Cache peringkat SLA fakultas di dashboard pelapor: dihitung ulang paling lambat tiap 10 menit. */
+    public const RANKING_CACHE_KEY = 'faculty-sla-ranking';
+
+    public const RANKING_CACHE_SECONDS = 600;
+
+    /**
+     * Batas warna peringkat (rata-rata waktu penyelesaian ÷ target SLA):
+     *   ≤ 0,75  hijau  (rata-rata selesai jauh sebelum target)
+     *   ≤ 1,00  kuning (masih dalam target)
+     *   > 1,00  merah  (rata-rata melewati target)
+     */
+    public const RANKING_FAST_RATIO = 0.75;
+
     /** Kolom yang diambil untuk perhitungan (cukup kecil untuk ribuan tiket per fakultas). */
     private const COLUMNS = [
-        'tickets.id', 'tickets.status', 'tickets.reporter_type', 'tickets.category_id', 'tickets.handler_id',
+        'tickets.id', 'tickets.faculty_id', 'tickets.status', 'tickets.reporter_type', 'tickets.category_id', 'tickets.handler_id',
         'tickets.created_at', 'tickets.assigned_at', 'tickets.resolved_at', 'tickets.sla_target_hours',
         'ratings.score as rating_score',
     ];
@@ -198,6 +213,73 @@ class TicketMetrics
             ->sortByDesc('handled')
             ->values()
             ->all();
+    }
+
+    /**
+     * Peringkat Performa SLA Fakultas untuk dashboard pelapor (US-02 poin 5–8, F-TKU-08, PRD 10.2).
+     *
+     * Aturan PRD:
+     *   - HANYA tiket Selesai (tiket Ditolak tidak dihitung), dibandingkan dengan target SLA snapshot tiket itu
+     *     (tickets.sla_target_hours), jadi perubahan SLA kategori kemudian tidak mengubah penilaian lama.
+     *   - HANYA agregat per fakultas AKTIF. Tidak ada rincian per kategori, jadi kategori sensitif
+     *     ("Integritas Dosen") tidak pernah terlihat terpisah oleh pelapor.
+     *
+     * Kenapa diurutkan dengan RASIO (waktu penyelesaian ÷ target), bukan jam rata-rata saja?
+     *   Target tiap kategori berbeda (24 jam untuk KRS, 120 jam untuk Integritas Dosen). Fakultas yang banyak
+     *   menerima tiket bertarget panjang akan terlihat "lambat" kalau hanya membandingkan jam. Rasio membuat
+     *   perbandingan adil: 0,5 = rata-rata selesai di separuh waktu target.
+     *
+     * Fakultas tanpa tiket Selesai tetap ditampilkan di bawah, tanpa nomor peringkat.
+     * Mengembalikan array biasa (bukan model) supaya aman disimpan di cache.
+     *
+     * @return list<array{rank: ?int, code: string, name: string, resolved: int, avg_resolution_seconds: ?float, avg_ratio: ?float, sla_rate: ?float, tone: string}>
+     */
+    public function facultyRanking(): array
+    {
+        $faculties = Faculty::where('is_active', true)->orderBy('id')->get(['id', 'code', 'name']);
+
+        $perFaculty = Ticket::query()
+            ->whereIn('faculty_id', $faculties->modelKeys())
+            ->where('status', TicketStatus::Selesai)
+            ->whereNotNull('resolved_at')
+            ->get(['faculty_id', 'created_at', 'resolved_at', 'sla_target_hours'])
+            ->groupBy('faculty_id');
+
+        $ranking = $faculties->map(function (Faculty $faculty) use ($perFaculty) {
+            $tickets = $perFaculty[$faculty->id] ?? collect();
+            $seconds = $tickets->map(fn (Ticket $t) => self::seconds($t->created_at, $t->resolved_at));
+            $ratios = $tickets->map(fn (Ticket $t) => self::seconds($t->created_at, $t->resolved_at) / max(1, $t->sla_target_hours * 3600));
+            $met = $tickets->filter(fn (Ticket $t) => self::seconds($t->created_at, $t->resolved_at) <= $t->sla_target_hours * 3600)->count();
+            $ratio = $ratios->isEmpty() ? null : round($ratios->avg(), 2);
+
+            return [
+                'rank' => null,
+                'code' => $faculty->code,
+                'name' => $faculty->name,
+                'resolved' => $tickets->count(),
+                'avg_resolution_seconds' => self::average($seconds),
+                'avg_ratio' => $ratio,
+                'sla_rate' => self::percent($met, $tickets->count()),
+                'tone' => match (true) {
+                    $ratio === null => 'neutral',
+                    $ratio <= self::RANKING_FAST_RATIO => 'good',
+                    $ratio <= 1.0 => 'warning',
+                    default => 'bad',
+                },
+            ];
+        });
+
+        $sorted = $ranking->sort(fn (array $a, array $b) => [$a['avg_ratio'] === null, $a['avg_ratio'], -($a['sla_rate'] ?? 0), $a['code']]
+            <=> [$b['avg_ratio'] === null, $b['avg_ratio'], -($b['sla_rate'] ?? 0), $b['code']])->values();
+
+        $rank = 0;
+        $result = [];
+        foreach ($sorted as $row) {
+            $row['rank'] = $row['avg_ratio'] === null ? null : ++$rank;
+            $result[] = $row;
+        }
+
+        return $result;
     }
 
     // ------------------------------------------------------------------

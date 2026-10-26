@@ -2,11 +2,12 @@
     Satu baris tiket di daftar (Tiket Saya, Riwayat, Dashboard), mengikuti mockup A "Tiket Aktif Terbaru".
 
     Pemakaian: <x-ticket-row :ticket="$ticket" :href="route('tickets.show', $ticket)" />
+               <x-ticket-row ... :new-reply="true" />   -> badge "Balasan baru" (ada balasan Staff yang belum dibaca, M5)
     Butuh relasi: category.parent, faculty, handler (eager load supaya tidak N+1 query).
 
     Info SLA (US-04): tiket Menunggu -> "Menunggu diambil Staff" TANPA hitung mundur (tidak ada auto-expire).
 --}}
-@props(['ticket', 'href'])
+@props(['ticket', 'href', 'newReply' => false])
 
 <a href="{{ $href }}" {{ $attributes->merge(['class' => 'group flex flex-col gap-3 px-4 py-4 hover:bg-sunken/60 focus-visible:bg-sunken/60 md:flex-row md:items-center md:justify-between md:px-5']) }}>
     <div class="min-w-0">
@@ -14,6 +15,9 @@
             <span class="font-mono text-sm font-semibold text-accent-ink">{{ $ticket->ticket_number }}</span>
             <x-ui.badge :status="$ticket->status" />
             <x-ui.badge>{{ $ticket->faculty->code }}</x-ui.badge>
+            @if ($newReply)
+                <x-ui.badge tone="info">Balasan baru</x-ui.badge>
+            @endif
         </div>
         <p class="mt-1 truncate font-bold text-ink group-hover:text-primary">{{ $ticket->title }}</p>
         <p class="mt-0.5 truncate text-sm text-muted">{{ $ticket->category->pathLabel() }}</p>

@@ -3,7 +3,7 @@
 
     Pemakaian:
       <x-ui.alert type="success">Registrasi berhasil.</x-ui.alert>
-      <x-ui.alert type="error" title="Gagal masuk">NIM/NIDN atau password salah.</x-ui.alert>
+      <x-ui.alert type="error" title="Gagal masuk">NIM/NIP atau password salah.</x-ui.alert>
 
     type: info · success · warning · error. Warnanya memakai token status tiket
     (warna + ikon + teks, jadi tidak hanya bergantung pada warna).

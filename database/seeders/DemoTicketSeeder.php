@@ -34,6 +34,8 @@ use Illuminate\Support\Facades\Storage;
  *      dengan waktu ambil/selesai bervariasi (ada yang melewati SLA), rating 2–5, dan beberapa Ping lama.
  *      Dibuat acak tetapi SELALU SAMA setiap seeding (mt_srand dengan angka tetap), untuk grafik & laporan.
  *
+ * Tambahan M5: notifikasi lonceng Ahmad untuk tiket #2 (diproses: sudah dibaca; balasan Staff: belum dibaca).
+ *
  * Aturan yang dijaga (dicek DatabaseSeederTest): kategori selalu LEAF dan audiensnya cocok dengan jenis pelapor;
  * sla_target_hours & reporter_type = snapshot; handler punya spesialisasi kelompok tiket; status mengikuti PRD 4.5
  * (menunggu tanpa handler; diproses/selesai/ditolak punya handler + assigned_at; selesai punya bukti; ditolak punya
@@ -309,6 +311,18 @@ class DemoTicketSeeder extends Seeder
         foreach ($this->pendingPings as $ping) {
             $this->writePing(...$ping);
         }
+
+        // ===== M5: notifikasi lonceng pelapor (sama seperti TicketNotifier) untuk tiket #2 milik Ahmad =====
+        // "diproses" sudah dibaca, balasan Staff BELUM dibaca -> kotak "Notifikasi baru" + badge "Balasan baru" di dashboard.
+        $number = DB::table('tickets')->where('id', $t2)->value('ticket_number');
+        $assignedAt = Carbon::parse(DB::table('tickets')->where('id', $t2)->value('assigned_at'));
+        $staffReply = DB::table('comments')->where('ticket_id', $t2)->where('user_id', $staffUmum)->where('is_internal_note', false)->first(['body', 'created_at']);
+        DB::table('notifications')->insert([
+            ['user_id' => $mahasiswa, 'ticket_id' => $t2, 'type' => 'in_app', 'subject' => "Tiket {$number} sedang diproses",
+                'message' => 'Diambil oleh Staff Umum FITK.', 'is_read' => true, 'sent_at' => $assignedAt, 'read_at' => $assignedAt->copy()->addMinutes(30)],
+            ['user_id' => $mahasiswa, 'ticket_id' => $t2, 'type' => 'in_app', 'subject' => "Balasan baru dari Staff: {$number}",
+                'message' => $staffReply->body, 'is_read' => false, 'sent_at' => $staffReply->created_at, 'read_at' => null],
+        ]);
     }
 
     /**

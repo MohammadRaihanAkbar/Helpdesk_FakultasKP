@@ -64,13 +64,15 @@ class DashboardController extends Controller
             ->values();
 
         // Teguran Ping dari Admin yang belum dibaca (notifikasi in-app, US-14 / F-NTF-06).
-        $pings = $staff->inAppNotifications()->where('is_read', false)->with('ticket')
+        // [M5] Lonceng Staff kini juga berisi notifikasi lain (batas thread), jadi kotak ini hanya mengambil Ping.
+        $unreadPings = fn () => $staff->inAppNotifications()->where('is_read', false)->where('subject', 'like', 'Ping dari Admin%');
+        $pings = $unreadPings()->with('ticket')
             ->orderByDesc('sent_at')->orderByDesc('id')->limit(5)->get();
 
         return view('staff.dashboard', [
             'user' => $staff,
             'pings' => $pings,
-            'unreadPings' => $staff->inAppNotifications()->where('is_read', false)->count(),
+            'unreadPings' => $unreadPings()->count(),
             'stats' => $stats,
             'slaAlerts' => $slaAlerts,
             'inProgress' => $inProgress->sortByDesc('assigned_at')->take(5)->values(),

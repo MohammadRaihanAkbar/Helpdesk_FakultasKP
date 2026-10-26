@@ -36,14 +36,13 @@ class AppLayoutTest extends TestCase
     {
         $superAdmin = User::factory()->superAdmin()->create();
 
-        // Per M4 halaman "Fakultas" & "Pengguna" Super Admin belum dibuat (M5), jadi menunya belum tampil.
-        $this->assertSame(['Dashboard'], array_column(Navigation::for($superAdmin), 'label'));
+        // Per M5 halaman "Fakultas" & "Pengguna" Super Admin sudah ada, jadi menunya tampil lengkap (PRD 7.5).
+        $this->assertSame(['Dashboard', 'Fakultas', 'Pengguna'], array_column(Navigation::for($superAdmin), 'label'));
 
-        // Begitu route "Fakultas" dibuat, menunya muncul sendiri.
-        Route::get('/super-admin/faculties', fn () => 'ok')->name('superadmin.faculties.index');
-        Route::getRoutes()->refreshNameLookups();
-
-        $this->assertSame(['Dashboard', 'Fakultas'], array_column(Navigation::for($superAdmin), 'label'));
+        // Item menu tetap disaring Route::has(): semua route menu memang terdaftar.
+        foreach (Navigation::for($superAdmin) as $item) {
+            $this->assertTrue(Route::has($item['route']));
+        }
     }
 
     public function test_menu_differs_per_role(): void
@@ -58,7 +57,7 @@ class AppLayoutTest extends TestCase
         $this->assertSame(['Dashboard', 'Buat Tiket', 'Tiket Saya', 'Riwayat Tiket'], $labels(User::factory()->create()));
         $this->assertSame(['Dashboard', 'Antrean Tiket', 'Tiket Saya', 'Riwayat Tiket'], $labels(User::factory()->staff()->create()));
         $this->assertSame(['Dashboard', 'Monitor Antrean', 'Kelola Staff', 'Pengaturan Layanan', 'Laporan & Analitik'], $labels(User::factory()->admin()->create()));
-        $this->assertSame(['Dashboard', 'Pengguna'], $labels(User::factory()->superAdmin()->create()));
+        $this->assertSame(['Dashboard', 'Fakultas', 'Pengguna'], $labels(User::factory()->superAdmin()->create()));
     }
 
     public function test_my_tickets_menu_shows_number_of_active_tickets(): void

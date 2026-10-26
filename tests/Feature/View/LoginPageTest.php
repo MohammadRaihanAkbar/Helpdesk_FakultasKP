@@ -21,7 +21,8 @@ class LoginPageTest extends TestCase
 
         $this->get('/login')
             ->assertOk()
-            ->assertSee('NIM / NIDN / Email')
+            ->assertSee('NIM / NIP / Email')
+            ->assertDontSee('NIDN')
             ->assertSee('Ingat sesi saya')
             ->assertSee('href="https://sso.contoh.ac.id/reset"', false)
             ->assertSee('images/logo-uinssc.png', false);

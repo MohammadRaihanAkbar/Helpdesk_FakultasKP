@@ -12,12 +12,12 @@ use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 /**
- * Dosen login dengan NIP (18 digit) atau NIDN (10 digit).
+ * Dosen login dengan NIP (18 digit); NIDN (10 digit) tetap diterima.
  *
  * Latar belakang: PRD memakai NIDN, tetapi koleksi Postman Bridge API v2 menulis field login
- * "NIM/NIP/NIK portal" dan variabel {{nip}} = "NIP dosen"; NIDN tidak disebut.
- * Karena belum pasti, aplikasi menerima keduanya dan selalu menyimpan SATU akun per dosen
- * (kolom users.nidn berisi NIDN bila SSO memberikannya, NIP bila tidak). PERLU DIKONFIRMASI ke pembimbing.
+ * "NIM/NIP/NIK portal" dan variabel {{nip}} = "NIP dosen". Keputusan M5: dosen diidentifikasi dengan NIP.
+ * NIP disimpan di kolom users.nip; kolom users.nidn hanya diisi bila SSO memang mengirim NIDN.
+ * Apa pun yang diketik, satu dosen tetap SATU akun.
  */
 class DosenLoginTest extends TestCase
 {
@@ -59,8 +59,9 @@ class DosenLoginTest extends TestCase
         $this->post('/login', ['login' => self::BUDI_NIP, 'password' => 'password'])
             ->assertRedirect('/dashboard');
 
-        $user = User::where('nidn', self::BUDI_NIDN)->firstOrFail(); // disimpan sebagai NIDN
+        $user = User::where('nip', self::BUDI_NIP)->firstOrFail(); // M5: disimpan dengan NIP
         $this->assertAuthenticatedAs($user);
+        $this->assertSame(self::BUDI_NIDN, $user->nidn);              // profil juga mengirim NIDN
         $this->assertSame(UserType::Dosen, $user->user_type);
         $this->assertNull($user->nim);
     }
@@ -93,7 +94,8 @@ class DosenLoginTest extends TestCase
         $this->post('/login', ['login' => '197905152006042001', 'password' => 'password'])
             ->assertRedirect('/dashboard');
 
-        $user = User::where('nidn', '197905152006042001')->firstOrFail();
+        $user = User::where('nip', '197905152006042001')->firstOrFail();
+        $this->assertNull($user->nidn); // kolom nidn tidak lagi diisi NIP
         $this->assertSame('Dra. Siti Dosen FEBI', $user->name);
         $this->assertSame(UserType::Dosen, $user->user_type);
         $this->assertSame(Faculty::where('code', 'FEBI')->value('id'), $user->origin_faculty_id);
@@ -120,7 +122,8 @@ class DosenLoginTest extends TestCase
         Http::assertSent(fn (Request $r) => $r->url() === self::BASE.'/api/v2/portal/login'
             && $r['username'] === self::BUDI_NIP);
 
-        // Profil memberi NIDN -> NIDN yang disimpan (sesuai PRD)
+        // NIP -> kolom nip, NIDN dari profil -> kolom nidn
+        $this->assertSame(self::BUDI_NIP, auth()->user()->nip);
         $this->assertSame(self::BUDI_NIDN, auth()->user()->nidn);
     }
 
@@ -131,23 +134,52 @@ class DosenLoginTest extends TestCase
 
         $this->post('/login', ['login' => self::BUDI_NIP, 'password' => 'rahasia'])->assertRedirect('/dashboard');
 
-        $this->assertSame(self::BUDI_NIP, auth()->user()->nidn); // 18 karakter, muat di kolom string(20)
+        $this->assertSame(self::BUDI_NIP, auth()->user()->nip);
+        $this->assertNull(auth()->user()->nidn);
     }
 
-    public function test_account_saved_with_nip_switches_to_nidn_without_duplicate(): void
+    public function test_old_account_with_nip_in_the_nidn_column_is_reused_and_cleaned(): void
     {
-        // Dulu profil SSO hanya memberi NIP, jadi akun tersimpan dengan NIP.
-        $old = User::factory()->dosen()->create(['nidn' => self::BUDI_NIP]);
+        // Akun M1–M4: NIP (bukan 18 digit, jadi tidak dipindah migration) tersimpan di kolom nidn.
+        $old = User::factory()->dosen()->create(['nip' => null, 'nidn' => '1988041220']);
 
-        // Sekarang profil SSO juga memberi NIDN.
+        $this->useBridge();
+        $this->fakeBridge(['nama' => 'Dr. Budi Dosen', 'jenis_user' => 'dosen', 'nip' => '1988041220']);
+
+        $this->post('/login', ['login' => '1988041220', 'password' => 'rahasia'])->assertRedirect('/dashboard');
+
+        $this->assertSame($old->id, auth()->id());
+        $this->assertSame('1988041220', $old->fresh()->nip);
+        $this->assertNull($old->fresh()->nidn); // tidak tercatat dua kali
+        $this->assertSame(1, User::where('user_type', UserType::Dosen)->count());
+    }
+
+    public function test_account_known_by_nidn_gets_its_nip_without_duplicate(): void
+    {
+        $old = User::factory()->dosen()->create(['nip' => null, 'nidn' => self::BUDI_NIDN]);
+
         $this->useBridge();
         $this->fakeBridge(['nama' => 'Dr. Budi Dosen', 'jenis_user' => 'dosen', 'nip' => self::BUDI_NIP, 'nidn' => self::BUDI_NIDN]);
 
-        $this->post('/login', ['login' => self::BUDI_NIDN, 'password' => 'rahasia'])->assertRedirect('/dashboard');
+        $this->post('/login', ['login' => self::BUDI_NIP, 'password' => 'rahasia'])->assertRedirect('/dashboard');
 
         $this->assertSame($old->id, auth()->id());
+        $this->assertSame(self::BUDI_NIP, $old->fresh()->nip);
         $this->assertSame(self::BUDI_NIDN, $old->fresh()->nidn);
         $this->assertSame(1, User::where('user_type', UserType::Dosen)->count());
+    }
+
+    public function test_nip_migration_moves_18_digit_values_out_of_the_nidn_column(): void
+    {
+        $legacy = User::factory()->dosen()->create(['nip' => null, 'nidn' => self::BUDI_NIP]);
+        $real = User::factory()->dosen()->create(['nip' => null, 'nidn' => self::BUDI_NIDN]);
+
+        $migration = require database_path('migrations/2026_10_21_100000_add_nip_to_users_table.php');
+        $migration->down();
+        $migration->up();
+
+        $this->assertSame([self::BUDI_NIP, null], [$legacy->fresh()->nip, $legacy->fresh()->nidn]);
+        $this->assertSame([null, self::BUDI_NIDN], [$real->fresh()->nip, $real->fresh()->nidn]);
     }
 
     public function test_bridge_profile_without_role_or_ids_detects_dosen_from_18_digit_nip(): void
@@ -159,6 +191,6 @@ class DosenLoginTest extends TestCase
 
         $user = auth()->user();
         $this->assertSame(UserType::Dosen, $user->user_type);
-        $this->assertSame(self::BUDI_NIP, $user->nidn);
+        $this->assertSame(self::BUDI_NIP, $user->nip);
     }
 }

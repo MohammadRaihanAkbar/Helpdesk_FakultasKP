@@ -25,10 +25,12 @@ use Illuminate\Notifications\RoutesNotifications;
  * Dua kolom fakultas dengan arti berbeda (lihat migration add_faculty_id_to_users_table):
  *   - origin_faculty_id -> fakultas ASAL pelapor      -> relasi originFaculty()
  *   - faculty_id        -> fakultas TEMPAT BERTUGAS   -> relasi faculty()
+ *
+ * Identitas kampus: nim (mahasiswa/alumni), nip (dosen, sejak M5), nidn (dosen, hanya bila SSO mengirimnya).
  */
 #[Fillable([
     'name', 'email', 'password',
-    'nim', 'nidn', 'program_studi', 'avatar_url',
+    'nim', 'nidn', 'nip', 'program_studi', 'avatar_url',
     'role', 'user_type', 'graduation_year',
     'origin_faculty_id', 'faculty_id', 'is_active',
 ])]
@@ -106,6 +108,22 @@ class User extends Authenticatable
         return $this->user_type === UserType::Alumni
             && $this->graduation_year !== null
             && $this->graduation_year <= AlumniRegistrationRequest::LAST_GRADUATION_YEAR;
+    }
+
+    /**
+     * Nomor identitas yang ditampilkan di UI: ['NIP', '1988...'] / ['NIM', '2210...'], atau null (Staff/Admin).
+     * Dosen ditampilkan dengan NIP; NIDN hanya muncul untuk akun lama yang belum punya NIP.
+     *
+     * @return array{0: string, 1: string}|null
+     */
+    public function identity(): ?array
+    {
+        return match (true) {
+            $this->nip !== null => ['NIP', $this->nip],
+            $this->nim !== null => ['NIM', $this->nim],
+            $this->nidn !== null => ['NIDN', $this->nidn],
+            default => null,
+        };
     }
 
     // ------------------------------------------------------------------

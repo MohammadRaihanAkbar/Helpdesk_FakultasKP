@@ -12,7 +12,7 @@ use Illuminate\Support\Collection;
  * Peristiwa "Admin Fakultas mengirim Ping" (US-14, F-NTF-06).
  *
  * Dikirim SETELAH ping_logs & notifikasi in-app tersimpan (lihat PingService). Saat ini belum ada
- * pendengar (listener). Di M5, email teguran cukup ditambahkan sebagai listener baru, misalnya:
+ * pendengar (listener): email teguran sengaja ditunda di M5. Nanti cukup ditambahkan sebagai listener baru, misalnya:
  *
  *   php artisan make:listener SendPingEmail --event=TicketPinged
  *

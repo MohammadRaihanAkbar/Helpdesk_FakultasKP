@@ -19,10 +19,16 @@ use Throwable;
  *
  * SIAPA yang boleh (staff berspesialisasi / staff penangan) dicek lebih dulu oleh TicketPolicy di controller.
  * Service ini menjaga ATURAN BISNIS-nya: transisi status yang sah dan data wajib.
+ *
+ * [M5] Setiap perubahan status yang BERHASIL memberi tahu pelapor (email + lonceng) lewat TicketNotifier
+ * (F-NTF-02, F-NTF-04, F-NTF-05). Klik ganda yang tidak mengubah apa pun tidak mengirim notifikasi.
  */
 class TicketWorkflowService
 {
-    public function __construct(private readonly AttachmentStorage $storage) {}
+    public function __construct(
+        private readonly AttachmentStorage $storage,
+        private readonly TicketNotifier $notifier,
+    ) {}
 
     /**
      * Ambil tiket dari antrean.
@@ -51,6 +57,8 @@ class TicketWorkflowService
         $ticket->refresh();
 
         if ($won) {
+            $this->notifier->statusChanged($ticket);
+
             return $ticket;
         }
 
@@ -123,7 +131,10 @@ class TicketWorkflowService
             throw $e;
         }
 
-        return $ticket->refresh();
+        $ticket->refresh();
+        $this->notifier->statusChanged($ticket);
+
+        return $ticket;
     }
 
     /** Tolak tiket. Alasan WAJIB (termasuk alasan baku "Salah fakultas/kategori", lihat Ticket::REJECTION_REASONS). */
@@ -147,7 +158,10 @@ class TicketWorkflowService
             ]);
         });
 
-        return $ticket->refresh();
+        $ticket->refresh();
+        $this->notifier->statusChanged($ticket);
+
+        return $ticket;
     }
 
     private function assertTransition(Ticket $ticket, TicketStatus $to): void

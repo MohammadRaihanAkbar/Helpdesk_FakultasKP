@@ -16,6 +16,9 @@ use InvalidArgumentException;
 
 class AppServiceProvider extends ServiceProvider
 {
+    /** Batas umum request per menit untuk user yang login (PRD 6.3). */
+    public const AUTHENTICATED_PER_MINUTE = 60;
+
     /**
      * Register any application services.
      *
@@ -77,5 +80,12 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('pings', fn (Request $request) => Limit::perMinute(20)->by($request->user()?->id ?: $request->ip()));
 
         RateLimiter::for('tickets', fn (Request $request) => Limit::perMinute(30)->by($request->user()?->id ?: $request->ip()));
+
+        // [M5] Batas UMUM semua halaman web untuk user yang login (PRD 6.3: 60 request/menit), per akun.
+        // Dipasang di grup web (bootstrap/app.php). Tamu tidak dibatasi di sini: halaman login punya
+        // limiter sendiri, dan membatasi tamu per IP akan mengganggu satu Wi-Fi kampus yang berbagi IP.
+        RateLimiter::for('authenticated', fn (Request $request) => $request->user()
+            ? Limit::perMinute(self::AUTHENTICATED_PER_MINUTE)->by('user:'.$request->user()->id)
+            : Limit::none());
     }
 }

@@ -22,6 +22,8 @@
         ->filter()->take(2)->map(fn ($word) => mb_strtoupper(mb_substr($word, 0, 1)))->implode('');
     $subtitle = $user->role->label().($user->faculty ? ' · '.$user->faculty->code : ($user->originFaculty ? ' · '.$user->originFaculty->code : ''));
     // Angka kecil di samping menu (kunci "count", mis. jumlah tiket aktif) diisi lewat Navigation.
+    // $unread: jumlah notifikasi belum dibaca — dipakai top bar & bottom nav HP.
+    $unread = Route::has('notifications.index') ? $user->inAppNotifications()->where('is_read', false)->count() : 0;
 @endphp
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
@@ -138,7 +140,6 @@
                 @endif
 
                 @if (Route::has('notifications.index'))
-                    @php($unread = $user->inAppNotifications()->where('is_read', false)->count())
                     <a href="{{ route('notifications.index') }}" @class(['relative grid size-11 place-items-center rounded-control border border-line bg-surface text-ink shadow-sm hover:bg-sunken', 'ml-auto' => ! $search])>
                         <x-icon name="bell" />
                         <span class="sr-only">Notifikasi{{ $unread ? " ($unread belum dibaca)" : '' }}</span>
@@ -222,6 +223,26 @@
                     @endif
                 </li>
             @endforeach
+            {{-- Tombol Notifikasi di bottom nav HP: selalu tampil jika route ada, badge merah jika ada yang belum dibaca --}}
+            @if (Route::has('notifications.index'))
+                <li class="min-w-0 flex-1">
+                    <a href="{{ route('notifications.index') }}"
+                       @class([
+                           'relative flex min-h-16 flex-col items-center justify-center gap-1 px-1 text-xs',
+                           'font-bold text-primary' => request()->routeIs('notifications.*'),
+                           'font-semibold text-muted' => ! request()->routeIs('notifications.*'),
+                       ])
+                       aria-label="Notifikasi{{ $unread ? ' ('.$unread.' belum dibaca)' : '' }}">
+                        <span class="relative inline-flex">
+                            <x-icon name="bell" />
+                            @if ($unread)
+                                <span class="absolute -top-1 -right-1 size-2.5 rounded-full border-2 border-surface bg-notif" aria-hidden="true"></span>
+                            @endif
+                        </span>
+                        <span class="max-w-full truncate">Notifikasi</span>
+                    </a>
+                </li>
+            @endif
             @if (count($menu) < \App\Support\Navigation::MOBILE_LIMIT)
                 <li class="min-w-0 flex-1">
                     <form method="POST" action="{{ route('logout') }}">

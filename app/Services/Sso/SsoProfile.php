@@ -31,18 +31,18 @@ final class SsoProfile
         public readonly ?string $nip = null,
     ) {}
 
-    /** Nilai identitas utama: NIM untuk mahasiswa/alumni, NIDN untuk dosen. */
+    /** Nilai identitas utama: NIM untuk mahasiswa/alumni, NIP untuk dosen (NIDN hanya bila NIP tidak ada). */
     public function identifier(): string
     {
-        return $this->userType === UserType::Dosen ? (string) $this->nidn : (string) $this->nim;
+        return $this->userType === UserType::Dosen ? (string) ($this->nip ?? $this->nidn) : (string) $this->nim;
     }
 
     /**
      * Semua nomor yang mungkin sudah tersimpan untuk orang ini (untuk mencari akun lama).
      *
-     * Dosen bisa login memakai NIDN maupun NIP. Kolom users.nidn berisi NIDN bila SSO memberikannya,
-     * dan NIP bila tidak. Supaya dosen yang dulu tersimpan dengan NIP tidak dibuatkan akun kedua
-     * saat SSO mulai mengirim NIDN (atau sebaliknya), akun dicari dengan semua nomor ini.
+     * Dosen bisa login memakai NIP maupun NIDN. Sejak M5, NIP disimpan di kolom users.nip dan NIDN di users.nidn
+     * (hanya bila SSO memberikannya). Akun lama dari M1–M4 bisa saja masih menyimpan NIP di kolom nidn, jadi akun
+     * dicari dengan semua nomor ini di KEDUA kolom (lihat SsoUserSynchronizer::findExisting()).
      *
      * @return list<string>
      */
@@ -53,15 +53,19 @@ final class SsoProfile
         }
 
         return array_values(array_unique(array_filter(
-            [$this->nidn, $this->nip, $this->username],
+            [$this->nip, $this->nidn, $this->username],
             fn (?string $value) => $value !== null && $value !== '',
         )));
     }
 
-    /** Nama kolom identitas di tabel users: 'nim' atau 'nidn'. */
+    /** Nama kolom identitas utama di tabel users: 'nim', 'nip', atau 'nidn' (dosen tanpa NIP). */
     public function identifierColumn(): string
     {
-        return $this->userType === UserType::Dosen ? 'nidn' : 'nim';
+        if ($this->userType !== UserType::Dosen) {
+            return 'nim';
+        }
+
+        return $this->nip !== null ? 'nip' : 'nidn';
     }
 
     /**
@@ -86,21 +90,21 @@ final class SsoProfile
         $get = fn (string $field) => self::firstFilled($data, (array) ($fields[$field] ?? []));
 
         $nim = $get('nim');
-        // NIDN diutamakan (PRD); NIP dipakai sebagai cadangan karena login Bridge tertulis "NIM/NIP/NIK".
-        // NIP juga disimpan terpisah di $nip, supaya akun lama bisa ditemukan dengan NIP maupun NIDN.
+        // M5: dosen diidentifikasi dengan NIP (login Bridge tertulis "NIM/NIP/NIK").
+        // NIDN hanya disimpan kalau profil SSO memang mengirimnya; tidak lagi diisi NIP sebagai cadangan.
         $nip = $get('nip');
-        $nidn = $get('nidn') ?? $nip;
+        $nidn = $get('nidn');
         $status = self::lower($get('status'));
         $graduationYear = $get('graduation_year');
         $graduationYear = is_numeric($graduationYear) ? (int) $graduationYear : null;
 
-        $kind = self::detectKind(self::lower($get('role')), $nim, $nidn, $username, $mapping);
+        $kind = self::detectKind(self::lower($get('role')), $nim, $nip ?? $nidn, $username, $mapping);
 
         if ($kind === 'dosen') {
             $userType = UserType::Dosen;
-            $nidn ??= $username;      // profil tidak memberi NIDN/NIP -> pakai yang diketik
-            // Dosen yang login dengan NIP 18 digit tapi profilnya tanpa field nip: NIP = yang diketik.
-            if ($nip === null && preg_match('/^\d{18}$/', $username)) {
+            // Profil tanpa field nip: yang diketik di form login dianggap NIP, karena Bridge menerima NIP.
+            // Pengecualian: yang diketik sama dengan NIDN dari profil (dosen login memakai NIDN).
+            if ($nip === null && $username !== $nidn && ($nidn === null || preg_match('/^\d{18}$/', $username))) {
                 $nip = $username;
             }
             $nim = null;
@@ -146,9 +150,9 @@ final class SsoProfile
 
     /**
      * Tentukan jenis akun: 'mahasiswa' (termasuk alumni) atau 'dosen'.
-     * Urutan: field role di profil -> ada NIM/NIDN di profil -> format username.
+     * Urutan: field role di profil -> ada NIM / NIP / NIDN di profil -> format username.
      */
-    private static function detectKind(?string $role, ?string $nim, ?string $nidn, string $username, array $mapping): string
+    private static function detectKind(?string $role, ?string $nim, ?string $lecturerId, string $username, array $mapping): string
     {
         if ($role !== null) {
             foreach ($mapping['role_values'] ?? [] as $kind => $values) {
@@ -164,7 +168,7 @@ final class SsoProfile
         if ($nim !== null) {
             return 'mahasiswa';
         }
-        if ($nidn !== null) {
+        if ($lecturerId !== null) {
             return 'dosen';
         }
 

@@ -1,6 +1,8 @@
 {{--
     Dashboard Pelapor (/dashboard) — PRD 10.2, US-02, mockup A.
     Semua angka berasal dari tiket milik pelapor yang login (tanpa angka contoh).
+    M5: kotak "Notifikasi baru" (balasan Staff & status berubah, F-NTF-05) muncul bila ada yang belum dibaca,
+        dan kartu "Performa SLA Fakultas" (F-TKU-08) di kolom kanan.
 --}}
 @php
     $cards = [
@@ -41,6 +43,35 @@
         @endforeach
     </section>
 
+    {{-- Notifikasi baru dari Staff (US-02, F-NTF-05): tampil hanya bila ada yang belum dibaca --}}
+    @if ($notifications->isNotEmpty())
+        <section aria-labelledby="notifikasi-baru" class="mb-4 rounded-card border border-diproses-dot/40 bg-diproses-bg/70 p-4 shadow-card md:mb-5 md:p-5">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+                <h2 id="notifikasi-baru" class="flex items-center gap-2 text-[17px] font-extrabold text-diproses-fg">
+                    <x-icon name="bell" /> Notifikasi baru ({{ $unreadCount }} belum dibaca)
+                </h2>
+                <a href="{{ route('notifications.index') }}" class="inline-flex min-h-10 items-center gap-1 text-sm font-bold text-primary hover:underline">
+                    Semua notifikasi <x-icon name="chevron-right" class="size-4" />
+                </a>
+            </div>
+            <ul class="mt-3 space-y-2">
+                @foreach ($notifications as $notification)
+                    <li>
+                        <form method="POST" action="{{ route('notifications.read', $notification->id) }}">
+                            @csrf
+                            @method('PATCH')
+                            <button type="submit" class="block w-full rounded-control border border-line bg-surface px-4 py-3 text-left shadow-sm hover:border-primary/40">
+                                <span class="block font-bold text-ink">{{ $notification->subject }}</span>
+                                <span class="mt-0.5 block text-sm whitespace-pre-line text-muted">{{ \Illuminate\Support\Str::limit($notification->message, 160) }}</span>
+                                <span class="mt-1 block text-xs text-muted">{{ $notification->sent_at?->diffForHumans() }} · klik untuk membuka tiket</span>
+                            </button>
+                        </form>
+                    </li>
+                @endforeach
+            </ul>
+        </section>
+    @endif
+
     <div class="grid gap-4 lg:grid-cols-[1.5fr_1fr]">
         <x-ui.card title="Tiket Terbaru" description="5 tiket terakhir yang Anda buat." class="p-0! md:p-0! [&>header]:px-4 [&>header]:pt-4 md:[&>header]:px-5 md:[&>header]:pt-5">
             @if ($latest->isNotEmpty())
@@ -63,7 +94,7 @@
             @else
                 <ul class="divide-y divide-line border-t border-line">
                     @foreach ($latest as $ticket)
-                        <li><x-ticket-row :ticket="$ticket" :href="$ticket->isOpen() ? route('tickets.show', $ticket) : route('history.show', $ticket)" /></li>
+                        <li><x-ticket-row :ticket="$ticket" :href="$ticket->isOpen() ? route('tickets.show', $ticket) : route('history.show', $ticket)" :new-reply="in_array($ticket->id, $repliedTicketIds)" /></li>
                     @endforeach
                 </ul>
                 <p class="flex items-center gap-1.5 border-t border-line px-4 py-3 text-xs text-muted md:px-5">
@@ -72,31 +103,35 @@
             @endif
         </x-ui.card>
 
-        <x-ui.card title="Profil" description="Data dari SSO kampus atau formulir registrasi.">
-            <dl class="divide-y divide-line text-sm">
-                <div class="flex justify-between gap-4 py-2.5 first:pt-0">
-                    <dt class="text-muted">{{ $user->nidn ? 'NIDN' : 'NIM' }}</dt>
-                    <dd class="font-mono font-semibold">{{ $user->nidn ?? $user->nim ?? '-' }}</dd>
-                </div>
-                <div class="flex justify-between gap-4 py-2.5">
-                    <dt class="text-muted">Jenis pelapor</dt>
-                    <dd class="font-semibold">{{ $user->user_type?->label() ?? '-' }}</dd>
-                </div>
-                @if ($user->graduation_year)
-                    <div class="flex justify-between gap-4 py-2.5">
-                        <dt class="text-muted">Tahun lulus</dt>
-                        <dd class="font-semibold">{{ $user->graduation_year }}</dd>
+        <div class="min-w-0 space-y-4">
+            <x-sla-ranking :ranking="$slaRanking" />
+
+            <x-ui.card title="Profil" description="Data dari SSO kampus atau formulir registrasi.">
+                <dl class="divide-y divide-line text-sm">
+                    <div class="flex justify-between gap-4 py-2.5 first:pt-0">
+                        <dt class="text-muted">{{ $user->identity()[0] ?? 'NIM / NIP' }}</dt>
+                        <dd class="font-mono font-semibold">{{ $user->identity()[1] ?? '-' }}</dd>
                     </div>
-                @endif
-                <div class="flex justify-between gap-4 py-2.5">
-                    <dt class="text-muted">Fakultas asal</dt>
-                    <dd class="text-right font-semibold">{{ $user->originFaculty?->name ?? '-' }}</dd>
-                </div>
-                <div class="flex justify-between gap-4 py-2.5 last:pb-0">
-                    <dt class="text-muted">Program studi</dt>
-                    <dd class="text-right font-semibold">{{ $user->program_studi ?? '-' }}</dd>
-                </div>
-            </dl>
-        </x-ui.card>
+                    <div class="flex justify-between gap-4 py-2.5">
+                        <dt class="text-muted">Jenis pelapor</dt>
+                        <dd class="font-semibold">{{ $user->user_type?->label() ?? '-' }}</dd>
+                    </div>
+                    @if ($user->graduation_year)
+                        <div class="flex justify-between gap-4 py-2.5">
+                            <dt class="text-muted">Tahun lulus</dt>
+                            <dd class="font-semibold">{{ $user->graduation_year }}</dd>
+                        </div>
+                    @endif
+                    <div class="flex justify-between gap-4 py-2.5">
+                        <dt class="text-muted">Fakultas asal</dt>
+                        <dd class="text-right font-semibold">{{ $user->originFaculty?->name ?? '-' }}</dd>
+                    </div>
+                    <div class="flex justify-between gap-4 py-2.5 last:pb-0">
+                        <dt class="text-muted">Program studi</dt>
+                        <dd class="text-right font-semibold">{{ $user->program_studi ?? '-' }}</dd>
+                    </div>
+                </dl>
+            </x-ui.card>
+        </div>
     </div>
 </x-layouts.app>

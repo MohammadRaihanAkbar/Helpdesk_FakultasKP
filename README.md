@@ -9,22 +9,25 @@ Aplikasi helpdesk (layanan aduan & permohonan informasi) untuk **seluruh fakulta
 - **Admin Fakultas** mengelola staff, spesialisasi, katalog layanan & target SLA, memantau antrean, dan melihat laporan.
 - **Super Admin** mengelola data master fakultas dan menunjuk Admin Fakultas.
 
-Login mahasiswa/dosen/alumni ≥ 2022 memakai **SSO kampus** (NIM, atau NIDN/NIP untuk dosen). Staff dan admin memakai email + password.
+Login mahasiswa/dosen/alumni ≥ 2022 memakai **SSO kampus** (NIM, atau NIP untuk dosen). Staff dan admin memakai email + password.
 Alumni lulusan ≤ 2021 (daftar lewat hidden link) memakai **NIM lama atau email** + password yang dibuat saat registrasi.
 
 Dibangun dengan **Laravel 13 + Blade + MySQL**, Alpine.js, Tailwind CSS v4 (Vite). Dokumen acuan: PRD v6.2 dan Rencana Teknis.
 
-> Status: **Milestone 4 (Admin Fakultas: monitoring, Ping, laporan)** — di atas M1 (login, peran), M2 (layanan, staff,
-> buat tiket, thread), dan M3 (alur Staff + rating). Admin Fakultas sekarang punya dashboard dengan KPI PRD
-> (SLA Compliance, CSAT, Time-to-Claim, Claim Rate, Completion Rate) dan grafik, Monitor Antrean dengan penanda SLA,
-> tombol **Ping / Ingatkan** ke Staff (tercatat di `ping_logs` + notifikasi in-app), serta Laporan & Analitik
-> dengan ekspor **CSV dan Excel**. Super Admin dan email notifikasi menyusul di M5.
+> Status: **Milestone 5 (Super Admin, notifikasi in-app, peringkat SLA fakultas, keamanan)** — di atas M1 (login, peran),
+> M2 (layanan, staff, buat tiket, thread), M3 (alur Staff + rating), dan M4 (monitoring, Ping, laporan Admin).
+> Super Admin sekarang bisa mengelola fakultas (katalog standar otomatis tersalin), menunjuk/mencabut Admin Fakultas,
+> dan melihat metrik global + celah coverage Staff. Pelapor mendapat notifikasi lonceng (tiket dibuat, status berubah,
+> balasan Staff, tiket selesai, batas thread) dan peringkat **Performa SLA Fakultas** di dashboard. Semua halaman
+> mengirim header keamanan (CSP, X-Frame-Options, …). Dosen login dengan **NIP**.
+> **Email notifikasi sengaja ditunda** (cara menambahkannya: `docs/progres/M5-super-admin-notifikasi-keamanan.md` bagian 4.4).
 
 ## Fitur yang sudah bisa dipakai
 
 | Peran          | Halaman                                   | Isi                                                                                       |
 | -------------- | ----------------------------------------- | ----------------------------------------------------------------------------------------- |
-| Pelapor        | `/dashboard`                              | 4 kartu (Total, Menunggu, Diproses, Selesai), tombol Buat Tiket, 5 tiket terbaru          |
+| Pelapor        | `/dashboard`                              | 4 kartu (Total, Menunggu, Diproses, Selesai), tombol Buat Tiket, 5 tiket terbaru (badge **Balasan baru**), kotak **Notifikasi baru**, **Performa SLA Fakultas** (hijau → merah) |
+| Semua peran    | `/notifications`                          | Lonceng: pelapor — tiket dibuat, status berubah, balasan Staff, tiket selesai (klik = form rating), batas 20 pesan; Staff — Ping & batas thread |
 | Pelapor        | `/tickets/new`                            | Fakultas → Kelompok Layanan → Jenis Masalah (sesuai jenis pelapor), judul, deskripsi, lampiran JPG/PNG/PDF (≤ 5 MB, ≤ 3) |
 | Pelapor        | `/tickets`, `/tickets/{id}`               | Tiket Saya (Menunggu/Diproses), detail, linimasa, thread diskusi maks. 20 pesan            |
 | Pelapor        | `/history`, `/history/{id}`               | Riwayat (Selesai/Ditolak), alasan penolakan, bukti penyelesaian, **rating CSAT** 1–5 bintang (sekali), **Buat Ulang Tiket** bila salah fakultas/kategori |
@@ -39,7 +42,9 @@ Dibangun dengan **Laravel 13 + Blade + MySQL**, Alpine.js, Tailwind CSS v4 (Vite
 | Staff          | `/staff/tickets`, `/staff/tickets/{id}`   | Tiket Saya (Diproses), detail + thread + **Catatan Internal**, **Tandai Selesai** (wajib bukti) / **Tolak** (wajib alasan) dengan dialog konfirmasi |
 | Staff          | `/staff/history`, `/staff/history/{id}`   | Riwayat tiket yang pernah ditangani: filter **rentang tanggal ditutup**, status, **kategori (kelompok/jenis)**; bukti, Sesuai/Melewati SLA, rating pelapor |
 | Staff          | `/notifications`                          | Teguran **Ping** dari Admin (lonceng di top bar + kotak "Teguran dari Admin" di dashboard); klik = tandai dibaca + buka tiket |
-| Super Admin    | `/super-admin/dashboard`                  | Dashboard kosong (M5)                                                                     |
+| Super Admin    | `/super-admin/dashboard`                  | Fakultas aktif, total tiket, CSAT, SLA Compliance se-universitas, ringkasan per fakultas, **celah coverage Staff** |
+| Super Admin    | `/super-admin/faculties`                  | Daftar fakultas + statistik (Admin, Staff, Total Tiket, Kelompok tanpa Staff), tambah/ubah (kode unik; **katalog standar otomatis tersalin**), aktif/nonaktif |
+| Super Admin    | `/super-admin/users`                      | Daftar seluruh pengguna (hanya baca), cari NIM/NIP/email/nama, **tunjuk / pindah / cabut Admin Fakultas** (hanya `role` + `faculty_id` yang berubah) |
 
 Lampiran disimpan di `storage/app/private` (tidak bisa dibuka lewat URL publik) dan hanya bisa diunduh
 lewat aplikasi oleh orang yang berhak. Tidak perlu `php artisan storage:link`.
@@ -106,11 +111,11 @@ php artisan key:generate
 
 ## Akun demo
 
-Semua password: **`password`**. Login di `/login` (satu kolom untuk NIM / NIDN / Email).
+Semua password: **`password`**. Login di `/login` (satu kolom untuk NIM / NIP / Email).
 
 | Peran                   | Login                               | Keterangan                                                                                                 |
 | ----------------------- | ----------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| Super Admin             | `superadmin@uinssc.test`          |                                                                                                            |
+| Super Admin             | `superadmin@uinssc.test`          | menu Dashboard, Fakultas, Pengguna (M5)                                                                    |
 | Admin Fakultas          | `admin.fitk@uinssc.test`          | pola sama: `admin.fua@…`, `admin.fdki@…`, `admin.febi@…`, `admin.fasya@…`, `admin.fastih@…` |
 | Staff FITK              | `staff.akademik.fitk@uinssc.test` | Sistem Akademik, Jadwal Mengajar — antrean berisi tiket merah/kuning/aman + 1 tiket Diproses belum dibalas |
 | Staff FITK              | `staff.umum.fitk@uinssc.test`     | Administrasi, UKT, Fasilitas, IT, Laboratorium Microteaching (kategori tambahan)                           |
@@ -120,8 +125,8 @@ Semua password: **`password`**. Login di `/login` (satu kolom untuk NIM / NIDN /
 | Staff FEBI              | `staff.umum.febi@uinssc.test`     | untuk mencoba bahwa Admin FITK tidak bisa menyentuh staff FEBI                                             |
 | Pelapor data laporan    | `siti.aminah@uinssc.test`, dst.   | 7 pelapor tambahan pemilik tiket riwayat (M4). Tidak ada di simulasi SSO, jadi tidak dipakai untuk login. |
 | Mahasiswa (SSO)         | NIM `2210110001`                  | punya 8 tiket demo: menunggu, diproses (ada thread), selesai (ada yang belum dirating), ditolak "salah fakultas/kategori", sensitif |
-| Dosen (SSO)             | NIDN `0412038801`                 | bisa juga dengan NIP `198804122015031001` (akun yang sama)                                                 |
-| Dosen FEBI (SSO)        | NIP `197905152006042001`          | profil SSO tanpa NIDN: tersimpan dengan NIP; akun dibuat otomatis saat login pertama                       |
+| Dosen (SSO)             | NIP `198804122015031001`          | bisa juga dengan NIDN `0412038801` (akun yang sama)                                                        |
+| Dosen FEBI (SSO)        | NIP `197905152006042001`          | profil SSO tanpa NIDN: hanya kolom `nip` yang terisi; akun dibuat otomatis saat login pertama              |
 | Alumni lulus 2023 (SSO) | NIM `1910110045`                  | jenis pelapor otomatis *alumni*                                                                          |
 | Alumni lulus 2019       | NIM `1510110023` atau `dedi.alumni2019@example.com` | tidak ada di SSO, daftar lewat hidden link; dicek di database lokal                  |
 | Mahasiswa baru (SSO)    | NIM `2310210007`                  | belum ada di database: akun dibuat otomatis saat login pertama                                             |
@@ -147,6 +152,14 @@ Variabel lain: `SSO_TIMEOUT` (detik, bawaan 10), `SSO_EMAIL_FALLBACK_DOMAIN` (em
 ⚠️ Bentuk respons `/api/v2/profil` **belum diketahui pasti**, jadi pemetaan field-nya dibuat bisa diatur di `config/sso.php`.
 Penjelasan & cara menyesuaikannya: [`docs/SSO.md`](docs/SSO.md).
 
+## Keamanan (M5)
+
+- Semua respons membawa header `Content-Security-Policy`, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`.
+  CSP sudah mengizinkan Alpine.js (`'unsafe-eval'`), style inline, dan server Vite saat `npm run dev` (dibaca dari `public/hot`),
+  jadi tidak perlu dimatikan di Laragon. Kalau ada masalah tampilan: isi `CSP_REPORT_ONLY=true` di `.env` (hanya
+  melapor di Console browser), lalu cek pesan di Console. Pengaturan lengkap: `config/security.php`.
+- Batas umum **60 request/menit per akun** yang login (PRD 6.3), selain batas khusus login, tiket, dan Ping.
+
 ## Menjalankan test
 
 ```bash
@@ -170,12 +183,15 @@ atau satu file: `php artisan test --filter=ServiceSettingsTest`.
 | `app/Services/StaffSpecialtyService.php`  | Spesialisasi staff + ringkasan "Kelompok tanpa Staff"                        |
 | `app/Services/Tickets`                    | Buat tiket, nomor tiket, lampiran, pilihan kategori, thread, alur staff (`TicketWorkflowService`: ambil/selesai/tolak), rating |
 | `app/Services/Reports`                    | KPI PRD 1.4 (`TicketMetrics`), filter laporan (`ReportFilters`), ekspor CSV/XLSX (`TicketExport`, library openspout) |
+| `app/Services/Tickets/TicketNotifier.php` | Semua notifikasi in-app alur tiket (satu pintu; tempat menambah email nanti) |
+| `app/Services/FacultyService.php`, `AdminAppointmentService.php` | Super Admin: fakultas + statistik/celah coverage, tunjuk/cabut Admin |
+| `app/Http/Middleware/SecurityHeaders.php`, `config/security.php` | Header keamanan (CSP, X-Frame-Options, …), bisa diatur lewat `.env` |
 | `app/Services/Tickets/PingService.php`    | Ping / Ingatkan: penerima, `ping_logs`, notifikasi in-app, event `TicketPinged` (untuk email M5) |
 | `app/Policies`                            | Siapa boleh melihat/mengubah apa (tiket, lampiran, kategori, staff)           |
 | `app/Exceptions/BusinessRuleException.php` | Error aturan bisnis berkode PRD (`INVALID_CATEGORY`, `THREAD_LIMIT_REACHED`, ...) |
 | `app/Services/Sso`                        | Login SSO: interface, klien Bridge, klien simulasi, sinkronisasi user         |
-| `app/Services/Auth/LoginService.php`      | Alur login satu kolom (email → lokal, NIM alumni ≤ 2021 → lokal, NIM/NIDN/NIP lain → SSO) |
-| `app/Http/Middleware`                     | `role`, akun aktif, kunci hidden link alumni                                |
+| `app/Services/Auth/LoginService.php`      | Alur login satu kolom (email → lokal, NIM alumni ≤ 2021 → lokal, NIM/NIP lain → SSO) |
+| `app/Http/Middleware`                     | `role`, akun aktif, kunci hidden link alumni, header keamanan               |
 | `config/sso.php`                          | Konfigurasi SSO + pemetaan field profil + akun simulasi                       |
 | `lang/id`                                 | Pesan validasi & autentikasi Bahasa Indonesia                                 |
 | `docs/progres`                            | Catatan belajar per milestone (bahan laporan KP)                              |

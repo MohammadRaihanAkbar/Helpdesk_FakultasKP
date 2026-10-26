@@ -16,8 +16,8 @@ use Illuminate\Support\Facades\Route;
  * bertambah sendiri ketika route baru ditambahkan di milestone berikutnya. Hal yang sama
  * berlaku untuk kotak pencarian di top bar.
  *
- * Status per M4: pelapor, Staff, dan Admin Fakultas sudah punya semua menunya (PRD 7.5).
- * Menu Super Admin (Fakultas, Pengguna) menyusul di M5.
+ * Status per M5: keempat peran sudah punya semua menunya (PRD 7.5), termasuk Super Admin
+ * (Dashboard, Fakultas, Pengguna).
  */
 class Navigation
 {
@@ -108,7 +108,7 @@ class Navigation
             Role::EndUser => ['tickets.index', 'Cari nomor tiket…'],
             Role::Staff => ['staff.queue', 'Cari nomor tiket…'],
             Role::Admin => ['admin.queue', 'Cari nomor tiket…'],
-            Role::SuperAdmin => ['superadmin.users.index', 'Cari NIM / NIDN / email…'],
+            Role::SuperAdmin => ['superadmin.users.index', 'Cari NIM / NIP / email…'],
         };
 
         return Route::has($route) ? ['url' => route($route), 'placeholder' => $placeholder] : null;

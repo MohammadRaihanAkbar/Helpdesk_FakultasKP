@@ -65,7 +65,7 @@ class LocalLoginTest extends TestCase
     {
         $this->post('/login', ['login' => '', 'password' => ''])
             ->assertSessionHasErrors([
-                'login' => 'NIM / NIDN / Email wajib diisi.',
+                'login' => 'NIM / NIP / Email wajib diisi.',
                 'password' => 'Password wajib diisi.',
             ]);
     }

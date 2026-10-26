@@ -45,12 +45,30 @@ class SsoProfileMappingTest extends TestCase
         $this->assertSame('FITK', $profile->facultyCode);
     }
 
-    public function test_dosen_without_nidn_falls_back_to_nip(): void
+    public function test_dosen_without_nidn_is_identified_by_nip_only(): void
     {
         $profile = $this->map(['data' => ['nama' => 'Dosen NIP', 'jenis_user' => 'dosen', 'nip' => '198804122015031001']], '198804122015031001');
 
         $this->assertSame(UserType::Dosen, $profile->userType);
-        $this->assertSame('198804122015031001', $profile->nidn);
+        $this->assertSame('198804122015031001', $profile->nip);
+        $this->assertNull($profile->nidn); // M5: kolom nidn tidak lagi diisi NIP
+        $this->assertSame('nip', $profile->identifierColumn());
+    }
+
+    public function test_dosen_profile_without_any_id_uses_the_typed_username_as_nip(): void
+    {
+        $profile = $this->map(['data' => ['nama' => 'Dosen', 'jenis_user' => 'dosen']], '0412038801');
+
+        $this->assertSame('0412038801', $profile->nip);
+        $this->assertNull($profile->nidn);
+    }
+
+    public function test_dosen_logging_in_with_nidn_keeps_nip_from_profile(): void
+    {
+        $profile = $this->map(['data' => ['nama' => 'Dosen', 'jenis_user' => 'dosen', 'nidn' => '0412038801', 'nip' => '198804122015031001']], '0412038801');
+
+        $this->assertSame('198804122015031001', $profile->identifier());
+        $this->assertSame('0412038801', $profile->nidn);
     }
 
     public function test_kind_is_detected_from_username_format_when_role_is_missing(): void

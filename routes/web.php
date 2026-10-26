@@ -72,7 +72,7 @@ Route::middleware('auth')->group(function () {
 });
 
 // ---------- Notifikasi in-app (semua peran; tiap user hanya notifikasinya sendiri) ----------
-// M4: teguran Ping untuk Staff. Notifikasi lain (balasan, status) menyusul di M5.
+// M4: teguran Ping untuk Staff. M5: tiket dibuat, status, balasan Staff, batas thread (F-NTF-01..05, 07; in-app saja).
 Route::middleware('auth')->prefix('notifications')->name('notifications.')->group(function () {
     Route::get('/', [NotificationController::class, 'index'])->name('index');
     Route::patch('/read-all', [NotificationController::class, 'readAll'])->name('read-all');
@@ -137,6 +137,21 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
 });
 
 // ---------- Super Admin ----------
+// Hanya master data fakultas & penunjukan Admin Fakultas (PRD 2.4). Tidak menyentuh tiket, staff, atau kategori.
 Route::middleware(['auth', 'role:super_admin'])->prefix('super-admin')->name('superadmin.')->group(function () {
     Route::get('/dashboard', SuperAdmin\DashboardController::class)->name('dashboard');
+
+    // Master Fakultas (US-17, F-SPA-01). Tidak ada hapus: fakultas yang tidak dipakai cukup dinonaktifkan.
+    Route::controller(SuperAdmin\FacultyController::class)->prefix('faculties')->name('faculties.')->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::get('/create', 'create')->name('create');
+        Route::post('/', 'store')->name('store');
+        Route::get('/{faculty}/edit', 'edit')->whereNumber('faculty')->name('edit');
+        Route::put('/{faculty}', 'update')->whereNumber('faculty')->name('update');
+        Route::patch('/{faculty}/status', 'status')->whereNumber('faculty')->name('status');
+    });
+
+    // Daftar Pengguna (read-only) + tunjuk/cabut Admin Fakultas (US-18, F-SPA-02, F-SPA-04).
+    Route::get('/users', [SuperAdmin\UserController::class, 'index'])->name('users.index');
+    Route::patch('/users/{user}/role', [SuperAdmin\UserController::class, 'role'])->whereNumber('user')->name('users.role');
 });

@@ -17,12 +17,12 @@ use Illuminate\Validation\ValidationException;
  *                  untuk Staff, Admin Fakultas, Super Admin, dan Alumni lulus <= 2021
  *   selain itu  -> (1) cek dulu: apakah ini NIM alumni hidden link (lulus <= 2021)?
  *                      Jika ya dan password cocok -> LOGIN LOKAL dengan NIM.
- *                  (2) kalau tidak -> LOGIN SSO (NIM/NIDN/NIP + password SSO kampus)
+ *                  (2) kalau tidak -> LOGIN SSO (NIM/NIP + password SSO kampus; NIDN tetap diteruskan ke SSO)
  *                      untuk Mahasiswa, Dosen, dan Alumni lulus >= 2022
  *
  * Kenapa langkah (1) perlu? Alumni lulus <= 2021 TIDAK ADA di SSO kampus. Dulu semua input
  * tanpa "@" langsung dikirim ke SSO, sehingga alumni yang mengetik NIM selalu ditolak
- * "NIM/NIDN atau password salah" padahal akunnya sudah tersimpan (bug M1, lihat
+ * "NIM/NIDN atau password salah" (pesan lama) padahal akunnya sudah tersimpan (bug M1, lihat
  * docs/progres/M1-perbaikan-bug.md).
  *
  * Kenapa dipisah dari controller? Supaya controller tetap tipis (hanya terima request &
@@ -37,11 +37,11 @@ class LoginService
     public const SSO_TOKEN_SESSION_KEY = 'sso_token';
 
     /**
-     * Pesan jika login dengan NIM/NIDN/NIP gagal. Sengaja menyebut kedua kemungkinan password
+     * Pesan jika login dengan NIM/NIP gagal. Sengaja menyebut kedua kemungkinan password
      * (SSO atau registrasi alumni) tanpa memberi tahu akun mana yang ada, supaya orang lain
      * tidak bisa menebak NIM siapa saja yang terdaftar.
      */
-    public const IDENTITY_FAILED_MESSAGE = 'NIM/NIDN/NIP atau password salah. Gunakan password SSO kampus; alumni lulusan 2021 ke bawah memakai password yang dibuat saat registrasi.';
+    public const IDENTITY_FAILED_MESSAGE = 'NIM/NIP atau password salah. Gunakan password SSO kampus; alumni lulusan 2021 ke bawah memakai password yang dibuat saat registrasi.';
 
     public function __construct(
         private readonly SsoClient $sso,
@@ -111,7 +111,7 @@ class LoginService
         return $user;
     }
 
-    /** NIM/NIDN/NIP dikirim ke SSO; profilnya disinkronkan ke tabel users. */
+    /** NIM/NIP (atau NIDN) dikirim ke SSO apa adanya; profilnya disinkronkan ke tabel users. */
     private function authenticateSso(string $username, string $password): User
     {
         try {

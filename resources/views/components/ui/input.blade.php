@@ -3,7 +3,7 @@
 
     Pemakaian:
       <x-ui.input name="email" label="Email Pribadi" type="email" autocomplete="email" required />
-      <x-ui.input name="login" label="NIM / NIDN / Email" icon="user" />
+      <x-ui.input name="login" label="NIM / NIP / Email" icon="user" />
 
     - Nilai lama (old()) otomatis terisi setelah validasi gagal, KECUALI untuk password.
     - Pesan error diambil dari $errors->first($name); field ditandai aria-invalid dan

@@ -47,7 +47,7 @@ return [
 
     /*
     | Jika profil SSO tidak berisi email, sistem membuat email pengganti:
-    |   {nim atau nidn}@{email_fallback_domain}
+    |   {nim atau nip}@{email_fallback_domain}
     | (kolom users.email wajib diisi & unik).
     */
     'email_fallback_domain' => env('SSO_EMAIL_FALLBACK_DOMAIN', 'sso.uinssc.ac.id'),
@@ -76,52 +76,49 @@ return [
             'name' => ['nama', 'nama_lengkap', 'name'],
             'email' => ['email', 'email_kampus'],
 
-            // Jenis akun di SSO (mahasiswa / dosen / pegawai ...). Lihat 'role_values'.
+            // Jenis akun di SSO (jika tidak ada di /profil, otomatis ditebak lewat username_patterns di bawah)
             'role' => ['jenis_user', 'role', 'level', 'tipe'],
 
             'nim' => ['nim'],
-            // Dosen: PRD memakai NIDN, tetapi field login Bridge tertulis "NIM/NIP/NIK".
-            // Sistem menyimpan NIDN bila profil memberikannya; kalau tidak, NIP (lihat docs/SSO.md).
-            'nidn' => ['nidn'],
             'nip' => ['nip'],
+            'nidn' => ['nidn'],
 
-            // Status mahasiswa: 'Aktif', 'Lulus', ... Lihat 'graduated_status_values'.
-            'status' => ['status_mahasiswa', 'status'],
-            'graduation_year' => ['tahun_lulus'],
+            // Status mahasiswa: di respons asli menggunakan key 'status' ("Aktif")
+            'status' => ['status', 'status_mahasiswa'],
+            'graduation_year' => ['tahun_lulus', 'tanggal_lulus', 'semester_lulus'],
 
-            // Kode fakultas homebase -> dicocokkan dengan faculties.code (lihat 'faculty_code_map').
-            'faculty_code' => ['fakultas.kode', 'kode_fakultas'],
-            'program_studi' => ['prodi.nama', 'program_studi', 'nama_prodi'],
+            // Di respons asli Bridge UIN SSC, fakultas menggunakan key 'fakultas_nama' dan prodi menggunakan 'program_studi_nama'
+            'faculty_code' => ['fakultas_nama', 'fakultas_kode', 'fakultas.kode', 'kode_fakultas'],
+            'program_studi' => ['program_studi_nama', 'prodi.nama', 'program_studi', 'nama_prodi'],
         ],
 
-        /*
-        | Nilai field 'role' (huruf kecil) untuk masing-masing jenis pelapor.
-        | Akun SSO di luar daftar ini (mis. tenaga kependidikan) ditolak, karena Staff
-        | memakai akun lokal yang dibuat Admin Fakultas.
-        */
         'role_values' => [
             'mahasiswa' => ['mahasiswa', 'mhs', 'student'],
             'dosen' => ['dosen', 'lecturer'],
         ],
 
-        /* Nilai field 'status' (huruf kecil) yang berarti mahasiswa SUDAH LULUS -> user_type alumni. */
         'graduated_status_values' => ['lulus', 'alumni', 'graduated'],
 
-        /*
-        | Cadangan jika profil tidak punya field 'role' yang dikenali:
-        | jenis akun ditebak dari FORMAT username (PRD US-01: "deteksi otomatis berdasarkan format").
-        | Dicek berurutan, yang pertama cocok dipakai. Pola ini ASUMSI:
-        |   - NIDN = 10 digit diawali 0 (NIDK/NUP diawali 8/9), NIP PNS = 18 digit
-        |   - NIM UIN SSC = 10 digit (contoh 2210110001)
-        */
         'username_patterns' => [
             'dosen' => '/^([089]\d{9}|\d{18})$/',
             'mahasiswa' => '/^\d{8,12}$/',
         ],
 
-        /* Jika kode fakultas di SSO berbeda dengan faculties.code, petakan di sini. Contoh: 'FTK' => 'FITK'. */
+        /*
+        | Pemetaan 'fakultas_nama' dari Bridge UIN SSC ke kolom 'code' di tabel faculties database lokal.
+        | Pastikan nilai di sebelah kanan ('FITK', 'FEBI', dst.) sesuai dengan kode fakultas di database Anda.
+        */
         'faculty_code_map' => [
-            // 'FTK' => 'FITK',
+            'ILMU TARBIYAH DAN KEGURUAN' => 'FITK',
+            'FAKULTAS ILMU TARBIYAH DAN KEGURUAN' => 'FITK',
+            'EKONOMI DAN BISNIS ISLAM' => 'FEBI',
+            'FAKULTAS EKONOMI DAN BISNIS ISLAM' => 'FEBI',
+            'SYARIAH' => 'FASYA',
+            'FAKULTAS SYARIAH' => 'FASYA',
+            'USHULUDDIN DAN ADAB' => 'FUAD',
+            'FAKULTAS USHULUDDIN DAN ADAB' => 'FUAD',
+            'DAKWAH DAN KOMUNIKASI ISLAM' => 'FDKI',
+            'FAKULTAS DAKWAH DAN KOMUNIKASI ISLAM' => 'FDKI',
         ],
     ],
 
@@ -130,8 +127,8 @@ return [
     | Pengguna simulasi (driver 'fake')
     |--------------------------------------------------------------------------
     |
-    | Kunci = username yang diketik di form login (NIM / NIDN / NIP). Dosen juga bisa ditemukan
-    | lewat field nidn/nip di profilnya, jadi satu dosen bisa login dengan NIDN maupun NIP.
+    | Kunci = username yang diketik di form login (NIM / NIP / NIDN). Dosen juga bisa ditemukan
+    | lewat field nip/nidn di profilnya, jadi satu dosen bisa login dengan NIP maupun NIDN.
     | 'response' meniru respons GET /api/v2/profil SESUAI pemetaan di atas, sehingga
     | jalur kode yang sama (SsoProfile::fromResponse) dipakai di mode fake maupun bridge.
     |
@@ -163,7 +160,7 @@ return [
             ],
         ],
 
-        '0412038801' => [ // Dosen FITK: login dengan NIDN 0412038801 ATAU NIP 198804122015031001 (lihat FakeSsoClient::findUser)
+        '0412038801' => [ // Dosen FITK: login dengan NIP 198804122015031001 ATAU NIDN 0412038801 (lihat FakeSsoClient::findUser). Tersimpan: nip + nidn
             'password' => 'password',
             'response' => [
                 'success' => true,
@@ -190,7 +187,7 @@ return [
                     'email' => 'dosen.febi@uinssc.test',
                     'jenis_user' => 'dosen',
                     'nip' => '197905152006042001',
-                    'nidn' => null, // -> users.nidn diisi NIP (cadangan, lihat SsoProfile)
+                    'nidn' => null, // -> hanya users.nip yang terisi; users.nidn tetap kosong
                     'prodi' => ['kode' => 'ES', 'nama' => 'Ekonomi Syariah'],
                     'fakultas' => ['kode' => 'FEBI', 'nama' => 'Fakultas Ekonomi dan Bisnis Islam'],
                 ],

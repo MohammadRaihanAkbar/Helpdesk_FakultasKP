@@ -28,7 +28,7 @@ class SsoException extends RuntimeException
     /** Bridge menjawab 401/422 atau tidak memberi token. */
     public static function invalidCredentials(): self
     {
-        return new self('NIM/NIDN atau password salah.', self::INVALID_CREDENTIALS);
+        return new self('NIM/NIP atau password salah.', self::INVALID_CREDENTIALS);
     }
 
     /** Timeout, server mati, atau error 5xx. */

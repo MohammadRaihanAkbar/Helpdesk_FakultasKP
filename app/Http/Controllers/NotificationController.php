@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\TicketStatus;
 use App\Models\Ticket;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
@@ -10,8 +11,8 @@ use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 /**
- * Notifikasi in-app (F-NTF-05/06, PRD 9.2 Notifications). Saat ini isinya teguran Ping dari Admin untuk Staff;
- * notifikasi lain (balasan, status berubah) ditambahkan di M5 cukup dengan menulis baris baru di tabel notifications.
+ * Notifikasi in-app (F-NTF-05/06, PRD 9.2 Notifications). Isinya: teguran Ping dari Admin untuk Staff (M4), serta
+ * tiket dibuat, perubahan status, balasan Staff, dan batas thread (M5, ditulis App\Services\Tickets\TicketNotifier).
  *
  *   GET   /notifications              index    daftar notifikasi saya (terbaru di atas)
  *   PATCH /notifications/{id}/read    read     tandai dibaca, lalu buka tiketnya
@@ -71,6 +72,8 @@ class NotificationController extends Controller
         return match (true) {
             $user->isStaff() => route('staff.tickets.show', $ticket),   // tiket ditutup dialihkan ke Riwayat
             $user->isAdmin() => route('admin.tickets.show', $ticket),
+            // Tiket Selesai yang belum dirating -> langsung ke form rating (F-NTF-04 "link rating").
+            $user->isEndUser() && $ticket->status === TicketStatus::Selesai && ! $ticket->rating()->exists() => route('history.show', $ticket).'#rating',
             $user->isEndUser() => route('tickets.show', $ticket),
             default => null,
         };

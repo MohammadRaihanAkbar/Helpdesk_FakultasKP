@@ -22,6 +22,7 @@ use Throwable;
  *      - snapshot sla_target_hours (dari kategori) & reporter_type (dari user) -> tidak ikut berubah nanti
  *      - status awal "menunggu", tanpa handler, tanpa batas kedaluwarsa
  *   5. Nomor bentrok (sangat jarang) -> ulangi transaksi, maksimal 5 kali
+ *   6. [M5] Email "tiket berhasil dibuat" berisi nomor tiket (F-NTF-01), lewat antrean, SETELAH transaksi
  */
 class TicketService
 {
@@ -31,6 +32,7 @@ class TicketService
         private readonly TicketNumberGenerator $numbers,
         private readonly TicketCategoryTree $categories,
         private readonly AttachmentStorage $storage,
+        private readonly TicketNotifier $notifier,
     ) {}
 
     /**
@@ -65,7 +67,7 @@ class TicketService
 
             for ($attempt = 1; ; $attempt++) {
                 try {
-                    return DB::transaction(function () use ($reporter, $data, $category, $stored) {
+                    $ticket = DB::transaction(function () use ($reporter, $data, $category, $stored) {
                         $ticket = Ticket::create([
                             'ticket_number' => $this->numbers->next(),
                             'faculty_id' => $category->faculty_id,
@@ -84,6 +86,8 @@ class TicketService
 
                         return $ticket;
                     });
+
+                    break;
                 } catch (UniqueConstraintViolationException $e) {
                     if ($attempt >= self::MAX_ATTEMPTS) {
                         throw $e;
@@ -94,5 +98,10 @@ class TicketService
             $this->storage->discard($stored); // jangan tinggalkan file yatim
             throw $e;
         }
+
+        // Di luar try: tiket sudah tersimpan, jadi masalah notifikasi tidak boleh menghapus lampirannya.
+        $this->notifier->created($ticket);
+
+        return $ticket;
     }
 }

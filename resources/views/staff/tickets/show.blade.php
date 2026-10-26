@@ -51,7 +51,7 @@
                             @if ($showReporter)
                                 {{ $ticket->reporter->name }}
                                 <span class="block font-mono text-xs font-normal text-muted">
-                                    {{ $ticket->reporter->nidn ? 'NIDN '.$ticket->reporter->nidn : ($ticket->reporter->nim ? 'NIM '.$ticket->reporter->nim : $ticket->reporter->email) }}
+                                    {{ $ticket->reporter->identity() ? implode(' ', $ticket->reporter->identity()) : $ticket->reporter->email }}
                                 </span>
                             @else
                                 <span class="italic text-muted">Identitas dirahasiakan</span>

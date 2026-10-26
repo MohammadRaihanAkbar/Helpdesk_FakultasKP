@@ -38,7 +38,7 @@ class LoginRequest extends FormRequest
     public function attributes(): array
     {
         return [
-            'login' => 'NIM / NIDN / Email',
+            'login' => 'NIM / NIP / Email',
         ];
     }
 

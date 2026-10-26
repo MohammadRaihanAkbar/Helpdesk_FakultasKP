@@ -94,10 +94,10 @@ class UserSeeder extends Seeder
             'origin_faculty_id' => $fac['FITK'], 'password' => $password,
         ]);
 
-        $this->upsertUser([ // Dosen — login SSO pakai NIDN
+        $this->upsertUser([ // Dosen — login SSO pakai NIP (NIDN juga diterima)
             'name' => 'Dr. Budi Dosen', 'email' => 'dosen@uinssc.test',
             'role' => 'end_user', 'user_type' => 'dosen',
-            'nidn' => '0412038801', 'program_studi' => 'Pendidikan Bahasa Arab',
+            'nip' => '198804122015031001', 'nidn' => '0412038801', 'program_studi' => 'Pendidikan Bahasa Arab',
             'origin_faculty_id' => $fac['FITK'], 'password' => $password,
         ]);
 
@@ -122,8 +122,8 @@ class UserSeeder extends Seeder
             ['Rizky Pratama', 'rizky.pratama@uinssc.test', 'mahasiswa', ['nim' => '2210120015', 'program_studi' => 'Tadris Matematika']],
             ['Nurul Hidayah', 'nurul.hidayah@uinssc.test', 'mahasiswa', ['nim' => '2310130021', 'program_studi' => 'Pendidikan Bahasa Inggris']],
             ['Fajar Ramadhan', 'fajar.ramadhan@uinssc.test', 'mahasiswa', ['nim' => '2310110034', 'program_studi' => 'Pendidikan Guru MI']],
-            ['Dr. Hendra Saputra', 'hendra.saputra@uinssc.test', 'dosen', ['nidn' => '0415078502', 'program_studi' => 'Tadris Matematika']],
-            ['Lina Marlina, M.Pd.', 'lina.marlina@uinssc.test', 'dosen', ['nidn' => '0402119003', 'program_studi' => 'Pendidikan Bahasa Inggris']],
+            ['Dr. Hendra Saputra', 'hendra.saputra@uinssc.test', 'dosen', ['nip' => '198507152010121002', 'program_studi' => 'Tadris Matematika']],
+            ['Lina Marlina, M.Pd.', 'lina.marlina@uinssc.test', 'dosen', ['nip' => '199011022019032001', 'program_studi' => 'Pendidikan Bahasa Inggris']],
             ['Yusuf Alumni', 'yusuf.alumni2022@uinssc.test', 'alumni', ['nim' => '1810110077', 'program_studi' => 'Pendidikan Agama Islam', 'graduation_year' => 2022]],
         ];
         foreach ($extra as [$name, $email, $type, $identity]) {

@@ -81,7 +81,7 @@ class TicketPolicy
     }
 
     /**
-     * Identitas pelapor (nama, NIM/NIDN, email).
+     * Identitas pelapor (nama, NIM/NIP, email).
      *
      * Kategori sensitif "Integritas Dosen" (PRD 2.7 aturan 10): HANYA Staff penangan dan Admin Fakultas
      * (plus pelapor itu sendiri). Staff lain yang kebetulan punya spesialisasi itu melihat tiketnya di antrean,

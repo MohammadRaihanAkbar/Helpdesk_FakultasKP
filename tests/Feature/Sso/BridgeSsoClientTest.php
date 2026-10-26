@@ -85,7 +85,7 @@ class BridgeSsoClientTest extends TestCase
             $this->fail('Seharusnya melempar SsoException');
         } catch (SsoException $e) {
             $this->assertSame(SsoException::INVALID_CREDENTIALS, $e->errorCode);
-            $this->assertSame('NIM/NIDN atau password salah.', $e->getMessage());
+            $this->assertSame('NIM/NIP atau password salah.', $e->getMessage());
         }
     }
 

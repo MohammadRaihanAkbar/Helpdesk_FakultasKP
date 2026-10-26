@@ -5,6 +5,7 @@ namespace App\Http\Controllers\EndUser;
 use App\Enums\TicketStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Tickets\StoreTicketRequest;
+use App\Models\Notification;
 use App\Models\Ticket;
 use App\Services\Tickets\TicketCategoryTree;
 use App\Services\Tickets\TicketService;
@@ -113,6 +114,9 @@ class TicketController extends Controller
 
         $user = $request->user();
         $ticket->load(['category.parent', 'faculty', 'handler', 'attachments', 'resolutionProofs', 'rating']);
+
+        // [M5] Membuka tiket = notifikasi lonceng tiket ini (balasan baru, status berubah) dianggap sudah dibaca.
+        Notification::markTicketRead($user, $ticket);
 
         $comments = $ticket->comments()
             ->with(['user', 'attachments'])

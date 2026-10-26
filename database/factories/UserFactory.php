@@ -71,7 +71,8 @@ class UserFactory extends Factory
         return $this->state(fn () => [
             'role' => Role::EndUser,
             'user_type' => UserType::Dosen,
-            'nidn' => fake()->unique()->numerify('04########'),
+            'nip' => fake()->unique()->numerify('19################'), // NIP PNS 18 digit (M5: dosen pakai NIP)
+            'nidn' => null,
             'origin_faculty_id' => $originFaculty?->id,
             'faculty_id' => null,
         ]);

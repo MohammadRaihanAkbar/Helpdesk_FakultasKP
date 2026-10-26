@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\EnsureUserHasRole;
 use App\Http\Middleware\EnsureUserIsActive;
+use App\Http\Middleware\SecurityHeaders;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -20,9 +21,15 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         // Dicek di setiap request web: user yang dinonaktifkan langsung di-logout.
+        // [M5] throttle:authenticated = batas umum 60 request/menit per AKUN yang login (PRD 6.3),
+        // dihitung per user (bukan per IP) karena Wi-Fi kampus berbagi IP. Tamu tidak dibatasi di sini.
         $middleware->web(append: [
             EnsureUserIsActive::class,
+            'throttle:authenticated',
         ]);
+
+        // [M5] Header keamanan (CSP, X-Frame-Options, ...) di SEMUA respons. Pengaturan: config/security.php.
+        $middleware->append(SecurityHeaders::class);
 
         // Tamu yang membuka halaman ber-middleware 'auth' -> ke halaman login.
         $middleware->redirectGuestsTo(fn () => route('login'));

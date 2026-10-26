@@ -32,7 +32,8 @@ class FakeSsoClientTest extends TestCase
             $profile = $this->client()->authenticate($username, 'password');
 
             $this->assertSame($type, $profile->userType, "Jenis pelapor {$username} salah");
-            $this->assertSame($username, $profile->identifier());
+            // Budi login dengan NIDN, tetapi identitas utamanya NIP (M5); NIDN tetap salah satu kandidat pencarian akun.
+            $this->assertContains($username, $profile->identifierCandidates());
             $this->assertNotEmpty($profile->token);
         }
     }
@@ -53,9 +54,10 @@ class FakeSsoClientTest extends TestCase
         $profile = $this->client()->authenticate('198804122015031001', 'password');
 
         $this->assertSame(UserType::Dosen, $profile->userType);
-        $this->assertSame('0412038801', $profile->identifier()); // tetap disimpan dengan NIDN
-        $this->assertSame('198804122015031001', $profile->nip);
-        $this->assertSame(['0412038801', '198804122015031001'], $profile->identifierCandidates());
+        $this->assertSame('198804122015031001', $profile->identifier()); // M5: identitas utama dosen = NIP
+        $this->assertSame('nip', $profile->identifierColumn());
+        $this->assertSame('0412038801', $profile->nidn);                  // NIDN tetap disimpan karena SSO mengirimnya
+        $this->assertSame(['198804122015031001', '0412038801'], $profile->identifierCandidates());
     }
 
     public function test_wrong_password_is_rejected(): void
@@ -65,7 +67,7 @@ class FakeSsoClientTest extends TestCase
             $this->fail('Seharusnya melempar SsoException');
         } catch (SsoException $e) {
             $this->assertSame(SsoException::INVALID_CREDENTIALS, $e->errorCode);
-            $this->assertSame('NIM/NIDN atau password salah.', $e->getMessage());
+            $this->assertSame('NIM/NIP atau password salah.', $e->getMessage());
         }
     }
 
