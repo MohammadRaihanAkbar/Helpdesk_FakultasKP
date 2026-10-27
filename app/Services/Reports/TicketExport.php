@@ -22,12 +22,30 @@ use OpenSpout\Writer\XLSX\Writer;
  *
  * Pelapor kategori sensitif "Integritas Dosen" tetap ditulis namanya, karena Admin Fakultas memang
  * berhak melihat identitasnya (PRD 2.7 aturan 10). File ekspor hanya berisi tiket fakultas admin.
+ *
+ * [M6] Ekspor yang SAMA dipakai Dekan (/dekan/laporan) dan Staff (/staff/laporan). Untuk Dekan nama pelapor tiket
+ * sensitif diganti "Dirahasiakan" (maskSensitiveReporters()): PRD 2.7 hanya memberi hak identitas itu ke Staff
+ * penangan dan Admin Fakultas. Kolom & formatnya tetap persis US-15.
  */
 class TicketExport
 {
+    /** Pengganti nama pelapor tiket sensitif (Dekan). */
+    public const MASKED_REPORTER = 'Dirahasiakan';
+
+    private bool $maskSensitive = false;
+
+    /** Salinan exporter yang menyamarkan nama pelapor tiket kategori sensitif. */
+    public function maskSensitiveReporters(bool $mask = true): static
+    {
+        $copy = clone $this;
+        $copy->maskSensitive = $mask;
+
+        return $copy;
+    }
+
     public const HEADERS = [
         'No Tiket', 'Pelapor', 'Jenis Pelapor', 'Kelompok Layanan', 'Jenis Masalah', 'Status', 'Tanggal Dibuat',
-        'Tanggal Diambil', 'Target SLA', 'Tanggal Selesai/Ditolak', 'Rating', 'Handler (Staff)', 'Bukti Penyelesaian',
+        'Tanggal Diambil', 'Target Waktu', 'Tanggal Selesai/Ditolak', 'Rating', 'Handler (Staff)', 'Bukti Penyelesaian',
     ];
 
     /** Format tanggal di file: mudah diurutkan dan dibaca Excel. */
@@ -58,7 +76,7 @@ class TicketExport
 
         return [
             $ticket->ticket_number,
-            $ticket->reporter?->name ?? '',
+            $this->maskSensitive && $category->isSensitive() ? self::MASKED_REPORTER : ($ticket->reporter?->name ?? ''),
             $ticket->reporter_type->label(),
             $category->isGroup() ? $category->name : $category->parent->name,
             $category->isGroup() ? '-' : $category->name,          // kelompok tanpa Jenis Masalah

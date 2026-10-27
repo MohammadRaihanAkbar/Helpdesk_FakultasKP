@@ -28,7 +28,7 @@
                                     <a href="{{ route('history.show', $ticket) }}#rating" class="inline-flex min-h-10 items-center gap-1.5 font-semibold text-primary hover:underline">
                                         <x-icon name="star" class="size-4" /> Beri rating
                                     </a>
-                                    <span class="text-muted">— belum dinilai</span>
+                                    <span class="text-muted">(belum dinilai)</span>
                                 @endif
                             </div>
                         @endif

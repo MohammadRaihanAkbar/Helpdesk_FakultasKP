@@ -3,6 +3,10 @@
 
     Periode menyaring tiket yang MASUK (created_at) pada rentang itu. Kartu KPI, grafik, tabel, DAN file ekspor
     memakai filter yang sama (App\Services\Reports\ReportFilters), jadi angka di layar bisa dicocokkan dengan file.
+
+    [M6] View ini juga dipakai Dekan (/dekan/laporan), data dari App\Services\Reports\FacultyReport:
+      $routes        nama route form (index), unduhan (export), dan detail tiket (ticket; null = nomor tiket tanpa tautan)
+      $maskSensitive true untuk Dekan: nama pelapor tiket kategori sensitif ditampilkan "Dirahasiakan"
 --}}
 @php
     use App\Enums\TicketStatus;
@@ -10,6 +14,8 @@
     use App\Support\ChartPalette;
     use App\Support\Format;
 
+    $routes ??= ['index' => 'admin.reports.index', 'export' => 'admin.reports.export', 'ticket' => 'admin.tickets.show'];
+    $maskSensitive ??= false;
     $exportQuery = $filters->toQuery();
     $unitLabels = ['day' => 'per hari', 'week' => 'per minggu', 'month' => 'per bulan'];
     $reporterTotal = max(1, collect($reporterTypes)->sum('total'));
@@ -18,14 +24,14 @@
 <x-layouts.app title="Laporan & Analitik">
     <x-page-header title="Laporan & Analitik" :description="'Kinerja layanan '.$faculty->code.' untuk tiket yang masuk '.$filters->label().'.'">
         <x-slot:action>
-            <x-ui.button variant="secondary" icon="download" :href="route('admin.reports.export', $exportQuery + ['format' => 'csv'])">Unduh CSV</x-ui.button>
-            <x-ui.button icon="download" :href="route('admin.reports.export', $exportQuery + ['format' => 'xlsx'])">Unduh Excel</x-ui.button>
+            <x-ui.button variant="secondary" icon="download" :href="route($routes['export'], $exportQuery + ['format' => 'csv'])">Unduh CSV</x-ui.button>
+            <x-ui.button icon="download" :href="route($routes['export'], $exportQuery + ['format' => 'xlsx'])">Unduh Excel</x-ui.button>
         </x-slot:action>
     </x-page-header>
 
     {{-- Filter --}}
     <x-ui.card class="mb-4">
-        <form method="GET" action="{{ route('admin.reports.index') }}" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
+        <form method="GET" action="{{ route($routes['index']) }}" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
               x-data="{ period: @js($filters->period) }">
             <x-ui.select name="period" label="Periode" :options="ReportFilters::PERIODS" :selected="$filters->period" x-model="period" />
             <div x-show="period === 'custom'" x-cloak>
@@ -45,7 +51,7 @@
             <div class="flex items-end gap-2">
                 <x-ui.button type="submit" icon="search">Terapkan</x-ui.button>
                 @if ($filters->narrowed() || $filters->period !== '30')
-                    <x-ui.button variant="secondary" :href="route('admin.reports.index')">Reset</x-ui.button>
+                    <x-ui.button variant="secondary" :href="route($routes['index'])">Reset</x-ui.button>
                 @endif
             </div>
         </form>
@@ -59,7 +65,7 @@
                     tone="bg-diproses-bg text-diproses-fg" note="dibuat → selesai (tiket Selesai)" />
         <x-kpi-card label="Rata-rata Time-to-Claim" :value="$kpi['avg_claim_seconds'] === null ? null : Format::seconds($kpi['avg_claim_seconds'])" icon="clock"
                     tone="bg-diproses-bg text-diproses-fg" note="dibuat → diambil staff" />
-        <x-kpi-card label="SLA Compliance" :value="$kpi['sla_rate']" suffix="%" icon="shield-check" tone="bg-selesai-bg text-selesai-fg"
+        <x-kpi-card label="Ketepatan Waktu" :value="$kpi['sla_rate']" suffix="%" icon="shield-check" tone="bg-selesai-bg text-selesai-fg"
                     :note="$kpi['sla_met'].' dari '.$kpi['selesai'].' selesai · target ≥ 85%'"
                     :status="$kpi['sla_rate'] === null ? null : ($kpi['sla_rate'] >= 85 ? 'good' : 'bad')" />
         <x-kpi-card label="CSAT Score" :value="$kpi['csat'] === null ? null : number_format($kpi['csat'], 1, ',', '.').' / 5'" icon="star" tone="bg-accent-soft text-accent-ink"
@@ -72,8 +78,8 @@
                     :note="'selesai / ditutup · target ≥ 90%'"
                     :status="$kpi['completion_rate'] === null ? null : ($kpi['completion_rate'] >= 90 ? 'good' : 'bad')" />
         <div class="rounded-card border border-dashed border-line p-4 text-xs leading-relaxed text-muted">
-            Semua angka dari tiket yang <b>masuk</b> pada periode & filter di atas. SLA Compliance dan Resolution Time hanya
-            menghitung tiket <b>Selesai</b> (tiket Ditolak tidak dinilai SLA).
+            Semua angka dari tiket yang <b>masuk</b> pada periode & filter di atas. Ketepatan waktu dan waktu penyelesaian hanya
+            menghitung tiket <b>Selesai</b> (tiket Ditolak tidak dinilai ketepatan waktunya).
         </div>
     </section>
 
@@ -161,7 +167,7 @@
                             <th scope="col" class="px-3 py-2.5">Status</th>
                             <th scope="col" class="px-3 py-2.5">Dibuat</th>
                             <th scope="col" class="px-3 py-2.5">Diambil</th>
-                            <th scope="col" class="px-3 py-2.5 text-right">SLA</th>
+                            <th scope="col" class="px-3 py-2.5 text-right">Target</th>
                             <th scope="col" class="px-3 py-2.5">Selesai/Ditolak</th>
                             <th scope="col" class="px-3 py-2.5 text-right">Rating</th>
                             <th scope="col" class="px-3 py-2.5">Handler</th>
@@ -171,8 +177,21 @@
                     <tbody class="divide-y divide-line">
                         @foreach ($tickets as $ticket)
                             <tr class="align-top">
-                                <td class="px-4 py-2.5 whitespace-nowrap md:px-5"><a href="{{ route('admin.tickets.show', $ticket) }}" class="font-mono font-semibold text-accent-ink hover:underline">{{ $ticket->ticket_number }}</a></td>
-                                <td class="min-w-36 px-3 py-2.5">{{ $ticket->reporter?->name }}<span class="block text-xs text-muted">{{ $ticket->reporter_type->label() }}</span></td>
+                                <td class="px-4 py-2.5 whitespace-nowrap md:px-5">
+                                    @if ($routes['ticket'])
+                                        <a href="{{ route($routes['ticket'], $ticket) }}" class="font-mono font-semibold text-accent-ink hover:underline">{{ $ticket->ticket_number }}</a>
+                                    @else
+                                        <span class="font-mono font-semibold text-accent-ink">{{ $ticket->ticket_number }}</span>
+                                    @endif
+                                </td>
+                                <td class="min-w-36 px-3 py-2.5">
+                                    @if ($maskSensitive && $ticket->category->isSensitive())
+                                        <span class="italic text-muted">{{ \App\Services\Reports\TicketExport::MASKED_REPORTER }}</span>
+                                    @else
+                                        {{ $ticket->reporter?->name }}
+                                    @endif
+                                    <span class="block text-xs text-muted">{{ $ticket->reporter_type->label() }}</span>
+                                </td>
                                 <td class="min-w-48 max-w-64 px-3 py-2.5">{{ $ticket->category->pathLabel() }}</td>
                                 <td class="px-3 py-2.5"><x-ui.badge :status="$ticket->status" /></td>
                                 <td class="px-3 py-2.5 whitespace-nowrap">{{ $ticket->created_at->format('d/m/Y H:i') }}</td>

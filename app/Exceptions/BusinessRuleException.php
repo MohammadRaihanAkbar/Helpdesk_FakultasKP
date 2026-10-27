@@ -174,7 +174,7 @@ class BusinessRuleException extends RuntimeException
     {
         return new self(
             'NO_ACTIVE_STAFF',
-            'Belum ada Staff untuk kelompok ini — tetapkan spesialisasi terlebih dahulu.',
+            'Belum ada Staff untuk kelompok ini (tetapkan spesialisasi terlebih dahulu).',
             422,
         );
     }

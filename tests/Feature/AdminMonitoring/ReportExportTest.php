@@ -16,7 +16,7 @@ class ReportExportTest extends AdminTestCase
     /** Kolom persis PRD US-15. */
     private const PRD_COLUMNS = [
         'No Tiket', 'Pelapor', 'Jenis Pelapor', 'Kelompok Layanan', 'Jenis Masalah', 'Status', 'Tanggal Dibuat',
-        'Tanggal Diambil', 'Target SLA', 'Tanggal Selesai/Ditolak', 'Rating', 'Handler (Staff)', 'Bukti Penyelesaian',
+        'Tanggal Diambil', 'Target Waktu', 'Tanggal Selesai/Ditolak', 'Rating', 'Handler (Staff)', 'Bukti Penyelesaian',
     ];
 
     protected function setUp(): void

@@ -59,9 +59,9 @@
         @endif
     </div>
 
-    {{-- SLA --}}
+    {{-- Target Waktu --}}
     <div class="text-sm">
-        <span class="text-xs font-bold text-muted uppercase lg:hidden">SLA: </span>
+        <span class="text-xs font-bold text-muted uppercase lg:hidden">Target: </span>
         @if ($hasChildren)
             <span class="text-muted" title="Nilai awal untuk Jenis Masalah baru">default {{ $category->sla_hours }} jam</span>
         @else

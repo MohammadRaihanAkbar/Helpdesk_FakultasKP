@@ -75,7 +75,7 @@ class StaffHistoryTest extends StaffTestCase
         $get(['category' => $this->cat('Keuangan & UKT')->id])->assertSee('KRS awal Oktober');
 
         // Pilihan filter hanya kelompok yang pernah ia tutup (+ Jenis Masalah-nya).
-        $get([])->assertViewHas('categoryOptions', fn (array $options) => in_array('— Nilai belum muncul', $options, true)
+        $get([])->assertViewHas('categoryOptions', fn (array $options) => in_array('· Nilai belum muncul', $options, true)
             && in_array('Sistem Akademik & Perkuliahan', $options, true) && ! in_array('Keuangan & UKT', $options, true));
     }
 
@@ -90,16 +90,16 @@ class StaffHistoryTest extends StaffTestCase
             ->assertOk()
             ->assertSee('Bukti penyelesaian')
             ->assertSee('bukti.pdf')
-            ->assertSee('Sesuai SLA')
+            ->assertSee('Sesuai Target')
             ->assertSee('5 dari 5 bintang')
             ->assertSee('Mantap')
             ->assertSee('Tiket sudah ditutup, thread tidak dapat dibalas lagi.')
             ->assertDontSee('Tutup tiket');
 
         $this->actingAs($this->akademik)->get("/staff/history/{$late->id}")
-            ->assertSee('Melewati SLA')->assertSee('Pelapor belum memberi rating.');
+            ->assertSee('Melewati Target')->assertSee('Pelapor belum memberi rating.');
 
-        $this->actingAs($this->akademik)->get('/staff/history')->assertSee('Sesuai SLA')->assertSee('Melewati SLA');
+        $this->actingAs($this->akademik)->get('/staff/history')->assertSee('Sesuai Target')->assertSee('Melewati Target');
     }
 
     public function test_open_and_closed_detail_urls_redirect_to_the_right_menu(): void

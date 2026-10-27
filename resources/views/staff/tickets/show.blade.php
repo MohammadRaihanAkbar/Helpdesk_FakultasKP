@@ -44,7 +44,7 @@
 
                 <dl class="mt-4 grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
                     <div><dt class="text-muted">Kategori</dt><dd class="font-semibold">{{ $ticket->category->pathLabel() }}</dd></div>
-                    <div><dt class="text-muted">Fakultas tujuan</dt><dd class="font-semibold">{{ $ticket->faculty->code }} — {{ $ticket->faculty->name }}</dd></div>
+                    <div><dt class="text-muted">Fakultas tujuan</dt><dd class="font-semibold">{{ $ticket->faculty->code }} · {{ $ticket->faculty->name }}</dd></div>
                     <div>
                         <dt class="text-muted">Pelapor</dt>
                         <dd class="font-semibold">
@@ -60,7 +60,7 @@
                         </dd>
                     </div>
                     <div><dt class="text-muted">Jenis pelapor</dt><dd class="font-semibold">{{ $ticket->reporter_type->label() }}</dd></div>
-                    <div><dt class="text-muted">Target SLA</dt><dd class="font-mono font-semibold">{{ $ticket->sla_target_hours }} jam <span class="font-sans font-normal text-muted">(batas {{ $ticket->slaDeadline()->translatedFormat('j M Y, H:i') }})</span></dd></div>
+                    <div><dt class="text-muted">Target batas waktu</dt><dd class="font-mono font-semibold">{{ $ticket->sla_target_hours }} jam <span class="font-sans font-normal text-muted">(batas {{ $ticket->slaDeadline()->translatedFormat('j M Y, H:i') }})</span></dd></div>
                     <div><dt class="text-muted">Dibuat</dt><dd class="font-semibold">{{ $ticket->created_at->translatedFormat('j M Y, H:i') }}</dd></div>
                     <div class="sm:col-span-2">
                         <dt class="text-muted">Ditangani oleh</dt>
@@ -68,7 +68,7 @@
                             @if ($ticket->handler)
                                 {{ $ticket->handler_id === $viewer->id ? 'Anda' : $ticket->handler->name }}
                             @else
-                                <span class="text-menunggu-fg">Belum diambil — menunggu di antrean</span>
+                                <span class="text-menunggu-fg">Belum diambil (menunggu di antrean)</span>
                             @endif
                         </dd>
                     </div>
@@ -185,7 +185,7 @@
                     @if ($ticket->isRejectedForWrongTarget())
                         <p class="mt-2 text-sm text-muted">Pelapor dapat menekan <b>Buat Ulang Tiket</b> untuk mengirim tiket baru ke fakultas/kategori yang benar.</p>
                     @endif
-                    <p class="mt-2 text-xs text-muted">Tiket Ditolak tidak dihitung dalam SLA Compliance.</p>
+                    <p class="mt-2 text-xs text-muted">Tiket Ditolak tidak dihitung dalam ketepatan waktu layanan.</p>
                 </x-ui.card>
             @elseif ($ticket->status === TicketStatus::Selesai)
                 <x-ui.card title="Bukti penyelesaian">
@@ -236,7 +236,7 @@
                         <form method="POST" action="{{ route('staff.tickets.comments.store', $ticket) }}" enctype="multipart/form-data" class="space-y-3"
                               x-data="{ files: [], internal: {{ $full || old('is_internal_note') ? 'true' : 'false' }} }">
                             @csrf
-                            <x-ui.textarea name="body" :label="$full ? 'Catatan internal' : 'Balas pesan'" :maxlength="\App\Http\Requests\Tickets\StoreCommentRequest::BODY_MAX" rows="3"
+                            <x-ui.textarea name="body" :label="$full ? 'Catatan internal' : 'Kirim pesan'" :maxlength="\App\Http\Requests\Tickets\StoreCommentRequest::BODY_MAX" rows="3"
                                            placeholder="Ketik pesan…" required />
                             @if ($full)
                                 <input type="hidden" name="is_internal_note" value="1">
@@ -244,7 +244,7 @@
                                 <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-control border border-line px-3 text-sm"
                                        :class="internal ? 'border-accent/60 bg-accent-soft' : 'bg-surface'">
                                     <input type="checkbox" name="is_internal_note" value="1" x-model="internal" class="size-5 accent-primary">
-                                    <span><b>Catatan Internal</b> (Staff Only) — tidak terlihat pelapor dan tidak dihitung dalam batas {{ $limit }} pesan.</span>
+                                    <span><b>Catatan Internal</b> (Staff Only): tidak terlihat pelapor dan tidak dihitung dalam batas {{ $limit }} pesan.</span>
                                 </label>
                             @endif
                             <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -278,7 +278,7 @@
             @include('tickets._timeline', ['ticket' => $ticket, 'pings' => $ticket->pingLogs])
 
             @if ($ticket->isOpen())
-                <x-ui.card title="Target SLA">
+                <x-ui.card title="Target Batas Waktu">
                     <p class="text-sm text-muted">Batas: <b class="text-ink">{{ $ticket->slaDeadline()->translatedFormat('j M Y, H:i') }}</b></p>
                     <p class="mt-1 text-sm text-muted">
                         @if ($ticket->slaState() === 'overdue')

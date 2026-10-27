@@ -182,9 +182,10 @@ class TicketMetrics
     /**
      * Performa per Staff (US-15, PRD 10.4): tiket ditangani, rata-rata waktu penyelesaian, SLA compliance.
      * Semua Staff AKTIF fakultas ikut tampil (walau 0 tiket); Staff nonaktif hanya bila punya tiket di periode.
+     * [M6] + rata-rata CSAT per Staff (kolom "hasil kerja" di dashboard Dekan).
      *
      * @param  iterable<Ticket>  $rows
-     * @return list<array{staff: User, handled: int, selesai: int, ditolak: int, diproses: int, avg_resolution_seconds: ?float, sla_rate: ?float}>
+     * @return list<array{staff: User, handled: int, selesai: int, ditolak: int, diproses: int, avg_resolution_seconds: ?float, sla_rate: ?float, csat: ?float, rated: int}>
      */
     public function byStaff(iterable $rows, int $facultyId, ?User $only = null): array
     {
@@ -208,6 +209,8 @@ class TicketMetrics
                 'ditolak' => $summary['ditolak'],
                 'avg_resolution_seconds' => $summary['avg_resolution_seconds'],
                 'sla_rate' => $summary['sla_rate'],
+                'csat' => $summary['csat'],
+                'rated' => $summary['rated'],
             ];
         })
             ->sortByDesc('handled')

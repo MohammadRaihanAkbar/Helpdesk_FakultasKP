@@ -20,8 +20,8 @@
 
             @unless ($isEdit)
                 <x-ui.alert type="info" title="Katalog standar otomatis">
-                    Setelah disimpan, sistem menyalin {{ count(\App\Services\CategoryCatalogService::CATALOG) }} Kelompok Layanan standar beserta Jenis Masalah, audiens, dan usulan SLA awal.
-                    Pengaturan kategori & SLA selanjutnya wewenang Admin Fakultas.
+                    Setelah disimpan, sistem menyalin {{ count(\App\Services\CategoryCatalogService::CATALOG) }} Kelompok Layanan standar beserta Jenis Masalah, audiens, dan usulan target waktu awal.
+                    Pengaturan kategori & target waktu selanjutnya wewenang Admin Fakultas.
                 </x-ui.alert>
             @endunless
 
@@ -48,7 +48,7 @@
                 <input type="hidden" name="is_active" value="0">
                 <label class="inline-flex min-h-12 cursor-pointer items-center gap-3">
                     <input type="checkbox" name="is_active" value="1" class="size-5 accent-primary" @checked(old('is_active', $faculty->is_active ?? true))>
-                    <span><span class="font-bold">Aktif</span> <span class="text-sm text-muted">— muncul di pilihan Fakultas Tujuan form buat tiket</span></span>
+                    <span><span class="font-bold">Aktif</span> <span class="text-sm text-muted">(muncul di pilihan Fakultas Tujuan form buat tiket)</span></span>
                 </label>
             </div>
 

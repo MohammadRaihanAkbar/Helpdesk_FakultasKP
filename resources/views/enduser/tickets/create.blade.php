@@ -30,7 +30,7 @@
 
     @if ($from)
         <x-ui.alert type="warning" title="Buat ulang dari {{ $from->ticket_number }}" class="mb-4">
-            Tiket lama ditolak karena <b>salah fakultas/kategori</b>. Data lama sudah terisi —
+            Tiket lama ditolak karena <b>salah fakultas/kategori</b>. Data lama sudah terisi,
             <b>periksa dan perbaiki Fakultas Tujuan serta kategorinya</b> sebelum mengirim. Tiket baru akan mendapat nomor baru.
         </x-ui.alert>
     @endif
@@ -73,7 +73,7 @@
                         <option value="">Pilih fakultas tujuan</option>
                         @foreach ($faculties as $faculty)
                             <option value="{{ $faculty->id }}" @selected($initial['faculty'] === (string) $faculty->id)>
-                                {{ $faculty->code }} — {{ $faculty->name }}{{ $originFaculty?->is($faculty) ? ' (fakultas asal Anda)' : '' }}
+                                {{ $faculty->code }} · {{ $faculty->name }}{{ $originFaculty?->is($faculty) ? ' (fakultas asal Anda)' : '' }}
                             </option>
                         @endforeach
                     </select>
@@ -116,7 +116,7 @@
 
                 <p x-show="leaf" x-cloak class="flex items-center gap-2 rounded-control bg-selesai-bg px-4 py-3 text-sm text-selesai-fg">
                     <x-icon name="clock" class="size-4" />
-                    <span>Target SLA: <b class="font-mono" x-text="leaf ? leaf.sla_hours + ' jam' : ''"></b> setelah tiket diambil staff.</span>
+                    <span>Target waktu penanganan: <b class="font-mono" x-text="leaf ? leaf.sla_hours + ' jam' : ''"></b> setelah tiket diambil staff.</span>
                 </p>
 
                 <hr class="border-line">

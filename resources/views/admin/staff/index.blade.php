@@ -3,7 +3,7 @@
     Tabel: nama, email, spesialisasi, status, jumlah tiket aktif, aksi (spesialisasi, aktif/nonaktif).
 --}}
 <x-layouts.app title="Kelola Staff">
-    <x-page-header title="Kelola Staff — {{ $faculty->code }}" description="Akun staff {{ $faculty->name }} dan spesialisasi layanannya.">
+    <x-page-header title="Kelola Staff: {{ $faculty->code }}" description="Akun staff {{ $faculty->name }} dan spesialisasi layanannya.">
         <x-slot:action>
             <x-ui.button :href="route('admin.staff.create')" icon="plus">Tambah Staff Baru</x-ui.button>
         </x-slot:action>

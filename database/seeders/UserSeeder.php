@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Hash;
  * Isinya:
  *  - 1 Super Admin
  *  - 1 Admin Fakultas per fakultas (6 akun)
+ *  - [M6] 1 Dekan FITK (dekan.fitk@uinssc.test): hanya dashboard statistik + laporan & ekspor FITK
  *  - 5 Staff FITK + spesialisasinya (tabel staff_specialties), 1 di antaranya nonaktif
  *  - 1 Staff FEBI (untuk mencoba batas lintas fakultas)
  *  - 4 pelapor: mahasiswa, dosen, alumni lulus 2023 (SSO), alumni lulus 2019 (hidden link)
@@ -41,6 +42,12 @@ class UserSeeder extends Seeder
                 'role' => 'admin', 'faculty_id' => $facultyId, 'password' => $password,
             ]);
         }
+
+        // ---------- 2b. [M6] Dekan (faculty_id = fakultas yang dipimpin, hanya memantau) ----------
+        $this->upsertUser([
+            'name' => 'Dr. Hj. Dekan FITK', 'email' => 'dekan.fitk@uinssc.test',
+            'role' => 'dekan', 'faculty_id' => $fac['FITK'], 'password' => $password,
+        ]);
 
         // ---------- 3. Staff + spesialisasi ----------
         // Spesialisasi = Kelompok Layanan (parent_id NULL) yang boleh dilihat antreannya.
@@ -87,21 +94,21 @@ class UserSeeder extends Seeder
         }
 
         // ---------- 4. Pelapor (role end_user, faculty_id NULL, origin_faculty_id = fakultas asal) ----------
-        $this->upsertUser([ // Mahasiswa aktif — login SSO pakai NIM
+        $this->upsertUser([ // Mahasiswa aktif: login SSO pakai NIM
             'name' => 'Ahmad Mahasiswa', 'email' => 'mahasiswa@uinssc.test',
             'role' => 'end_user', 'user_type' => 'mahasiswa',
             'nim' => '2210110001', 'program_studi' => 'Pendidikan Agama Islam',
             'origin_faculty_id' => $fac['FITK'], 'password' => $password,
         ]);
 
-        $this->upsertUser([ // Dosen — login SSO pakai NIP (NIDN juga diterima)
+        $this->upsertUser([ // Dosen: login SSO pakai NIP (NIDN juga diterima)
             'name' => 'Dr. Budi Dosen', 'email' => 'dosen@uinssc.test',
             'role' => 'end_user', 'user_type' => 'dosen',
             'nip' => '198804122015031001', 'nidn' => '0412038801', 'program_studi' => 'Pendidikan Bahasa Arab',
             'origin_faculty_id' => $fac['FITK'], 'password' => $password,
         ]);
 
-        $this->upsertUser([ // Alumni lulus 2023 (>= 2022) — datanya ADA di SSO, login pakai NIM
+        $this->upsertUser([ // Alumni lulus 2023 (>= 2022): datanya ADA di SSO, login pakai NIM
             'name' => 'Citra Alumni SSO', 'email' => 'alumni2023@uinssc.test',
             'role' => 'end_user', 'user_type' => 'alumni', 'graduation_year' => 2023,
             'nim' => '1910110045', 'program_studi' => 'Tadris Matematika',

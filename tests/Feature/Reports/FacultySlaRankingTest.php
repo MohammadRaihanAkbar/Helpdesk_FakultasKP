@@ -115,7 +115,7 @@ class FacultySlaRankingTest extends AdminTestCase
 
         $this->actingAs($this->mahasiswa)->get('/dashboard')
             ->assertOk()
-            ->assertSee('Performa SLA Fakultas')
+            ->assertSee('Ketepatan Waktu Fakultas')
             ->assertSeeInOrder(['FITK', 'Cepat', 'FEBI', 'Sesuai target'])
             ->assertSee('100%')
             ->assertDontSee('Integritas Dosen');

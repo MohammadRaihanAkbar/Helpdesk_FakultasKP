@@ -28,6 +28,7 @@ use Illuminate\Support\Facades\DB;
     'reporter_id', 'reporter_type', 'handler_id',
     'category_id', 'sla_target_hours',
     'assigned_at', 'first_responded_at', 'resolved_at',
+    'rating_reminder_count', 'last_rating_reminder_at', // [M6] pengingat rating
 ])]
 class Ticket extends Model
 {
@@ -68,6 +69,8 @@ class Ticket extends Model
             'assigned_at' => 'datetime',
             'first_responded_at' => 'datetime',
             'resolved_at' => 'datetime',
+            'rating_reminder_count' => 'integer',
+            'last_rating_reminder_at' => 'datetime',
         ];
     }
 

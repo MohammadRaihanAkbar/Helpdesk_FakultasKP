@@ -28,7 +28,7 @@ class AlumniRegistrationPageTest extends TestCase
         $this->get('/register/alumni')
             ->assertOk()
             ->assertSeeInOrder(['Nama Lengkap', 'Email Pribadi', 'NIM Lama', 'Tahun Lulus', 'Fakultas Asal', 'Password', 'Ulangi Password'])
-            ->assertSee('FITK — Fakultas Ilmu Tarbiyah dan Keguruan');
+            ->assertSee('FITK · Fakultas Ilmu Tarbiyah dan Keguruan');
     }
 
     public function test_inactive_faculties_are_not_offered(): void

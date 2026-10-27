@@ -46,6 +46,8 @@ class DatabaseSeederTest extends TestCase
         $this->assertSame(3, Category::where('is_standard', false)->count());
         $this->assertSame(1, User::where('role', Role::SuperAdmin)->count());
         $this->assertSame(6, User::where('role', Role::Admin)->count());
+        $this->assertSame(['dekan.fitk@uinssc.test'], User::where('role', Role::Dekan)->pluck('email')->all()); // [M6]
+        $this->assertSame('FITK', User::where('role', Role::Dekan)->first()->faculty->code);
         $this->assertSame(6, User::where('role', Role::Staff)->count());
         $this->assertSame(1, User::where('role', Role::Staff)->where('is_active', false)->count());
         $this->assertSame(11, User::where('role', Role::EndUser)->count()); // 4 akun demo + 7 pelapor data laporan (M4)
@@ -212,7 +214,7 @@ class DatabaseSeederTest extends TestCase
         $this->assertStringStartsWith('Balasan baru dari Staff: TKT-', $unread->first()->subject);
         $this->assertSame($mahasiswa->id, $unread->first()->ticket->reporter_id);
 
-        $this->actingAs($mahasiswa)->get('/dashboard')->assertOk()->assertSee('Balasan baru')->assertSee('Performa SLA Fakultas');
+        $this->actingAs($mahasiswa)->get('/dashboard')->assertOk()->assertSee('Balasan baru')->assertSee('Ketepatan Waktu Fakultas');
         $this->actingAs(User::where('role', Role::SuperAdmin)->first())->get('/super-admin/dashboard')->assertOk()->assertSee('Celah Coverage Staff');
     }
 }

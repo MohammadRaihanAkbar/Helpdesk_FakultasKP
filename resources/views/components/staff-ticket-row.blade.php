@@ -39,7 +39,7 @@
     </div>
 
     <div class="flex shrink-0 flex-col gap-2 text-sm md:items-end md:text-right">
-        <p class="text-muted">SLA <span class="font-mono font-semibold text-ink">{{ $ticket->sla_target_hours }} jam</span></p>
+        <p class="text-muted">Target <span class="font-mono font-semibold text-ink">{{ $ticket->sla_target_hours }} jam</span></p>
         <p class="flex items-center gap-1 text-xs text-muted">
             <x-icon name="clock" class="size-3.5" />
             @if ($ticket->isOpen())

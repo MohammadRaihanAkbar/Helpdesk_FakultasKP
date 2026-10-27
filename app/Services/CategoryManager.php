@@ -69,7 +69,7 @@ class CategoryManager
         foreach ($groups as $group) {
             $options[$group->id] = $group->name;
             foreach ($group->children as $child) {
-                $options[$child->id] = '— '.$child->name;
+                $options[$child->id] = '· '.$child->name;
             }
         }
 

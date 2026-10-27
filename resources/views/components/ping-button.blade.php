@@ -26,7 +26,7 @@
             <p id="ping-off-{{ $ticket->id }}" class="max-w-64 text-xs text-ditolak-fg md:text-right">
                 {{ $ticket->status === TicketStatus::Diproses
                     ? 'Staff penangan sedang nonaktif, Ping tidak dapat dikirim.'
-                    : 'Belum ada Staff untuk kelompok ini — tetapkan spesialisasi terlebih dahulu.' }}
+                    : 'Belum ada Staff untuk kelompok ini (tetapkan spesialisasi terlebih dahulu).' }}
             </p>
         </div>
     @else

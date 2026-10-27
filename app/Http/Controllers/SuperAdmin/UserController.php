@@ -4,6 +4,7 @@ namespace App\Http\Controllers\SuperAdmin;
 
 use App\Enums\Role;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\SuperAdmin\StoreDekanRequest;
 use App\Http\Requests\SuperAdmin\UpdateUserRoleRequest;
 use App\Models\Faculty;
 use App\Models\User;
@@ -18,10 +19,13 @@ use Illuminate\View\View;
  * Daftar Pengguna (/super-admin/users) — US-18, F-SPA-02, F-SPA-04.
  *
  *   GET   /super-admin/users              index  daftar SELURUH pengguna (read-only) + cari NIM/NIP/email/nama + filter peran
- *   PATCH /super-admin/users/{user}/role  role   tunjuk Admin Fakultas (atau pindah fakultas) / cabut Admin
+ *   PATCH /super-admin/users/{user}/role  role   tunjuk Admin Fakultas / Dekan (atau pindah fakultas) / cabut
+ *   GET   /super-admin/users/dekan/create createDekan  [M6] form akun lokal Dekan
+ *   POST  /super-admin/users/dekan        storeDekan   [M6] simpan akun lokal Dekan
  *
- * Super Admin tidak bisa membuat akun, mengubah data diri pengguna, membuat Staff, atau mengatur spesialisasi/
- * kategori (PRD 2.4). Satu-satunya perubahan dari halaman ini: kolom role + faculty_id (AdminAppointmentService).
+ * Super Admin tidak bisa mengubah data diri pengguna, membuat Staff, atau mengatur spesialisasi/kategori (PRD 2.4).
+ * Perubahan dari halaman ini: kolom role + faculty_id (AdminAppointmentService), dan sejak M6 satu jenis akun baru:
+ * akun lokal Dekan (untuk dekan yang belum pernah login lewat SSO, jadi belum ada di daftar).
  */
 class UserController extends Controller
 {
@@ -50,7 +54,7 @@ class UserController extends Controller
             'users' => $users,
             'filters' => ['q' => $q, 'role' => $role],
             'facultyOptions' => Faculty::orderByDesc('is_active')->orderBy('id')->get()
-                ->mapWithKeys(fn (Faculty $faculty) => [$faculty->id => "{$faculty->code} — {$faculty->name}".($faculty->is_active ? '' : ' (nonaktif)')])
+                ->mapWithKeys(fn (Faculty $faculty) => [$faculty->id => "{$faculty->code} · {$faculty->name}".($faculty->is_active ? '' : ' (nonaktif)')])
                 ->all(),
         ]);
     }
@@ -66,8 +70,36 @@ class UserController extends Controller
             return back()->with('status', "{$user->name} sekarang Admin Fakultas {$faculty->code}. Ia melihat dashboard Admin saat membuka aplikasi berikutnya.");
         }
 
+        if ($request->validated('action') === 'appoint_dekan') {
+            $faculty = Faculty::findOrFail($request->validated('faculty_id'));
+            $appointments->appointDekan($user, $faculty);
+
+            return back()->with('status', "{$user->name} sekarang Dekan {$faculty->code}. Ia melihat dashboard Dekan (hanya baca) saat membuka aplikasi berikutnya.");
+        }
+
+        $label = $user->role->label();
         $appointments->revoke($user);
 
-        return back()->with('status', "Peran Admin {$user->name} dicabut. Akunnya kembali menjadi Pelapor; jenis pelapor dan data lain tidak berubah.");
+        return back()->with('status', "Peran {$label} {$user->name} dicabut. Akunnya kembali menjadi Pelapor; jenis pelapor dan data lain tidak berubah.");
+    }
+
+    /** [M6] Form akun lokal Dekan. */
+    public function createDekan(): View
+    {
+        return view('superadmin.users.create-dekan', [
+            'facultyOptions' => Faculty::where('is_active', true)->orderBy('id')->get()
+                ->mapWithKeys(fn (Faculty $faculty) => [$faculty->id => "{$faculty->code} · {$faculty->name}"])
+                ->all(),
+        ]);
+    }
+
+    /** [M6] Simpan akun lokal Dekan. */
+    public function storeDekan(StoreDekanRequest $request, AdminAppointmentService $appointments): RedirectResponse
+    {
+        $dekan = $appointments->createDekan($request->validated());
+        $dekan->load('faculty');
+
+        return redirect()->route('superadmin.users.index', ['role' => 'dekan'])
+            ->with('status', "Akun Dekan {$dekan->faculty->code} untuk {$dekan->name} dibuat. Ia login dengan email {$dekan->email} dan password yang baru dibuat.");
     }
 }

@@ -30,7 +30,7 @@ class MyTicketsTest extends TicketTestCase
             ->assertSee('Keuangan &amp; UKT', false)
             ->assertSee('Menunggu diambil Staff')
             ->assertSee('Ditangani Sari Staff')
-            ->assertSee('SLA')
+            ->assertSee('Target')
             ->assertSee('24 jam');
     }
 

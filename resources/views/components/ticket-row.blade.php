@@ -24,7 +24,7 @@
     </div>
 
     <div class="shrink-0 text-sm md:text-right">
-        <p class="text-muted">SLA <span class="font-mono font-semibold text-ink">{{ $ticket->sla_target_hours }} jam</span></p>
+        <p class="text-muted">Target <span class="font-mono font-semibold text-ink">{{ $ticket->sla_target_hours }} jam</span></p>
         <p class="mt-0.5 font-semibold">
             @switch($ticket->status)
                 @case(\App\Enums\TicketStatus::Menunggu)

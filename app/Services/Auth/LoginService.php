@@ -2,6 +2,7 @@
 
 namespace App\Services\Auth;
 
+use App\Enums\AccountStatus;
 use App\Models\User;
 use App\Services\Sso\SsoClient;
 use App\Services\Sso\SsoException;
@@ -48,6 +49,18 @@ class LoginService
         private readonly SsoUserSynchronizer $synchronizer,
     ) {}
 
+    /** [M6] Pesan login untuk akun yang masih menunggu verifikasi / ditolak Admin Fakultas. */
+    public static function verificationMessage(User $user): string
+    {
+        $faculty = $user->originFaculty?->code;
+
+        return $user->account_status === AccountStatus::Rejected
+            ? 'Pendaftaran akun Anda ditolak Admin Fakultas'.($faculty ? " {$faculty}" : '').'. Alasan: '.($user->rejection_reason ?: '-')
+                .'. Silakan daftar ulang lewat tautan registrasi alumni dengan data yang benar.'
+            : 'Akun Anda masih menunggu verifikasi Admin Fakultas'.($faculty ? " {$faculty}" : '')
+                .'. Anda akan menerima email setelah akun disetujui.';
+    }
+
     public static function isLocalLogin(string $login): bool
     {
         return str_contains($login, '@');
@@ -61,6 +74,12 @@ class LoginService
         $user = self::isLocalLogin($login)
             ? $this->authenticateLocal($login, $password)
             : ($this->authenticateHiddenLinkAlumni($login, $password) ?? $this->authenticateSso($login, $password));
+
+        // [M6] Alumni hidden link yang belum / tidak disetujui Admin Fakultas belum boleh masuk.
+        // Pesan ini hanya muncul kalau password-nya BENAR (jadi tidak membocorkan akun siapa yang ada).
+        if (! $user->isApproved()) {
+            throw ValidationException::withMessages(['login' => self::verificationMessage($user)]);
+        }
 
         // Berlaku untuk semua jalur: akun yang dinonaktifkan Admin tidak boleh masuk.
         if (! $user->is_active) {

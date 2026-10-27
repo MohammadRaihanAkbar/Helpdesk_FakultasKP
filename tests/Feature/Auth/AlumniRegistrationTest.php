@@ -2,9 +2,9 @@
 
 namespace Tests\Feature\Auth;
 
+use App\Enums\AccountStatus;
 use App\Enums\Role;
 use App\Enums\UserType;
-use App\Http\Controllers\Auth\AlumniRegistrationController;
 use App\Http\Requests\Auth\AlumniRegistrationRequest;
 use App\Models\Faculty;
 use App\Models\User;
@@ -44,8 +44,8 @@ class AlumniRegistrationTest extends TestCase
     public function test_alumni_who_graduated_in_2021_or_earlier_can_register(): void
     {
         $this->post('/register/alumni', $this->validData(['graduation_year' => 2021]))
-            ->assertRedirect('/login')
-            ->assertSessionHas('status', AlumniRegistrationController::SUCCESS_MESSAGE);
+            ->assertRedirect(route('register.alumni.done')); // [M6] halaman "pendaftaran diterima, tunggu verifikasi"
+        $this->get(route('register.alumni.done'))->assertOk()->assertSee('Pendaftaran diterima')->assertSee('menunggu verifikasi');
 
         $user = User::where('email', 'dedi@example.com')->firstOrFail();
         $this->assertSame(Role::EndUser, $user->role);
@@ -55,7 +55,13 @@ class AlumniRegistrationTest extends TestCase
         $this->assertTrue($user->is_active);
         $this->assertGuest(); // tidak otomatis login
 
-        // Setelah mendaftar, bisa login dengan email + password
+        // [M6] Belum bisa login sebelum disetujui Admin Fakultas ...
+        $this->assertSame(AccountStatus::Pending, $user->account_status);
+        $this->post('/login', ['login' => 'dedi@example.com', 'password' => 'rahasia123'])->assertSessionHasErrors('login');
+        $this->assertGuest();
+
+        // ... setelah disetujui, bisa login dengan email + password
+        $user->forceFill(['account_status' => AccountStatus::Approved])->save();
         $this->post('/login', ['login' => 'dedi@example.com', 'password' => 'rahasia123'])
             ->assertRedirect('/dashboard');
     }
@@ -110,7 +116,7 @@ class AlumniRegistrationTest extends TestCase
         $this->get('/register/alumni?key=salah')->assertNotFound();
         $this->post('/register/alumni', $this->validData())->assertNotFound();
 
-        $this->post('/register/alumni?key=kunci-rahasia', $this->validData())->assertRedirect('/login');
+        $this->post('/register/alumni?key=kunci-rahasia', $this->validData())->assertRedirect(route('register.alumni.done'));
         $this->assertDatabaseHas('users', ['email' => 'dedi@example.com']);
     }
 

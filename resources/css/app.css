@@ -59,6 +59,12 @@
     --color-ditolak-fg: #972a22;
     --color-ditolak-dot: #d8463b;
 
+    /* ---- [M6] Token desain PRD bab 6 (glassmorphism), dipakai hero & statistik halaman depan publik ---- */
+    --color-night: #0b0f19;                  /* Obsidian Deep Base: lapisan gelap di atas foto Gedung Siber */
+    --color-indigo: #6366f1;                 /* Luminous Indigo */
+    --color-cyan: #06b6d4;                   /* Cyber Cyan */
+    --color-emerald: #10b981;                /* Emerald */
+
     /* ---- Bentuk & bayangan ---- */
     --radius-control: 12px;                  /* tombol, input, select */
     --radius-card: 18px;                     /* kartu, panel */
@@ -84,18 +90,56 @@
     color: transparent;
 }
 
+/* [M6] Lapisan gelap di atas foto hero halaman depan: teks putih tetap terbaca (kontras) di semua bagian foto. */
+@utility bg-hero-overlay {
+    background-image:
+        linear-gradient(180deg, rgba(11, 15, 25, 0.55) 0%, rgba(11, 15, 25, 0.35) 35%, rgba(11, 15, 25, 0.88) 100%),
+        linear-gradient(90deg, rgba(11, 15, 25, 0.75) 0%, rgba(11, 15, 25, 0.15) 70%);
+}
+
+/* [M6] Kartu kaca (glassmorphism PRD bab 6) di atas foto. */
+@utility glass {
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    backdrop-filter: blur(14px) saturate(140%);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+}
+
 @layer base {
     html {
         -webkit-text-size-adjust: 100%;
+        overflow-x: clip;
+        max-width: 100%;
     }
 
     /* Latar lembut hijau-krem: dua gradasi radial di atas warna ivory, tanpa gambar. */
     body {
         @apply min-h-dvh bg-canvas font-sans text-ink antialiased;
+        overflow-x: clip;
+        max-width: 100%;
         background-image:
             radial-gradient(60rem 40rem at -10% -15%, rgba(10, 94, 61, 0.14), transparent 60%),
             radial-gradient(50rem 36rem at 110% 20%, rgba(187, 143, 50, 0.16), transparent 60%);
         background-attachment: fixed;
+    }
+
+    /* Pengaturan lebar sidebar desktop & padding konten utama */
+    @media (min-width: 64rem) {
+        #sidebar {
+            width: 16rem;
+        }
+        .app-main-layout {
+            padding-left: 18rem;
+        }
+
+        body[data-sidebar="collapsed"] #sidebar {
+            width: 4.75rem;
+            padding-left: 0.5rem;
+            padding-right: 0.5rem;
+        }
+        body[data-sidebar="collapsed"] .app-main-layout {
+            padding-left: 6.75rem;
+        }
     }
 
     h1, h2, h3 {

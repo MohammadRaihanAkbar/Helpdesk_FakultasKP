@@ -136,6 +136,17 @@ class UserFactory extends Factory
         ]);
     }
 
+    /** [M6] Dekan: hanya memantau dashboard & laporan fakultas $faculty. */
+    public function dekan(?Faculty $faculty = null): static
+    {
+        return $this->state(fn () => [
+            'role' => Role::Dekan,
+            'user_type' => null,
+            'faculty_id' => $faculty?->id,
+            'origin_faculty_id' => null,
+        ]);
+    }
+
     public function superAdmin(): static
     {
         return $this->state(fn () => [

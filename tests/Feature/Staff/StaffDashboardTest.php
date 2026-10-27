@@ -55,7 +55,7 @@ class StaffDashboardTest extends StaffTestCase
         $this->waiting(null, ['title' => 'Masih aman', 'created_at' => now()->subHour()]);
 
         $alerts = $this->actingAs($this->akademik)->get('/staff/dashboard')
-            ->assertSee('Melewati SLA')->assertSee('Mendekati SLA')
+            ->assertSee('Melewati Target')->assertSee('Mendekati Batas Waktu')
             ->viewData('slaAlerts');
 
         $this->assertSame(['Antrean lewat SLA', 'Proses hampir lewat'], $alerts->pluck('title')->all());
@@ -66,7 +66,7 @@ class StaffDashboardTest extends StaffTestCase
         $this->actingAs($this->tanpaSpesialisasi)->get('/staff/dashboard')
             ->assertOk()
             ->assertSee('Anda belum memiliki spesialisasi layanan')
-            ->assertSee('Semua tiket masih dalam target SLA')
+            ->assertSee('Semua tiket masih dalam target batas waktu')
             ->assertSee('belum ada rating');
     }
 

@@ -8,11 +8,19 @@ use App\Models\Comment;
 use App\Models\Notification;
 use App\Models\Ticket;
 use App\Models\User;
+use App\Notifications\HelpdeskMail;
+use App\Notifications\RatingReminderMail;
+use App\Notifications\StaffRepliedMail;
+use App\Notifications\ThreadLimitMail;
+use App\Notifications\TicketCreatedMail;
+use App\Notifications\TicketResolvedMail;
+use App\Notifications\TicketStatusChangedMail;
 use Illuminate\Support\Str;
 
 /**
- * Satu tempat untuk semua notifikasi alur tiket (M5, PRD bab 5 modul NOTIF). Saat ini HANYA in-app (lonceng):
- * baris tabel notifications type = in_app, tampil di badge lonceng, halaman /notifications, dan dashboard pelapor.
+ * Satu tempat untuk semua notifikasi alur tiket (M5, PRD bab 5 modul NOTIF):
+ *   - in-app (lonceng): baris tabel notifications type = in_app, tampil di badge lonceng, /notifications, dashboard pelapor;
+ *   - [M6] EMAIL: class di app/Notifications, dikirim lewat antrean ke users.email (SMTP Gmail, lihat HelpdeskMail).
  *
  *   Peristiwa                        Penerima                    Subjek notifikasi                      PRD
  *   tiket dibuat                     pelapor                     "Tiket TKT-... berhasil dibuat"        F-NTF-01
@@ -21,12 +29,12 @@ use Illuminate\Support\Str;
  *   selesai (+ ajakan rating)        pelapor                     "Tiket TKT-... selesai"                F-NTF-04
  *   Staff membalas (bukan internal)  pelapor                     "Balasan baru dari Staff: TKT-..."     F-NTF-03, US-02
  *   pesan publik ke-20               pelapor + Staff penangan    "Thread TKT-... mencapai batas 20 pesan" F-NTF-07
- *   (Ping Admin -> Staff tetap ditulis PingService sejak M4, F-NTF-06)
+ *   [M6] pengingat rating            pelapor                     "Pengingat: beri penilaian tiket TKT-..."  (RatingReminderService)
+ *   (Ping Admin -> Staff tetap ditulis PingService sejak M4, F-NTF-06; emailnya lewat listener SendPingEmails)
  *
- * EMAIL SENGAJA DITUNDA (permintaan M5: "untuk sekarang gausah send ke email dulu"). Cara menambahkannya nanti:
- * buat class Notification Laravel (php artisan make:notification, implements ShouldQueue, $tries = 3) lalu panggil
- * $user->notify(...) di method notify() di bawah. Semua peristiwa sudah lewat method itu, jadi service lain
- * (TicketService, TicketWorkflowService, CommentService) tidak perlu diubah lagi.
+ * [M6] Email: setiap peristiwa di atas juga mengirim email (class *Mail di app/Notifications). Persis seperti
+ * rencana M5, cukup method notify() di bawah yang berubah; TicketService, TicketWorkflowService, dan CommentService
+ * tidak disentuh. Penerima tanpa email asli (email pengganti SSO) hanya mendapat notifikasi in-app.
  *
  * Dipanggil SETELAH transaksi masing-masing service selesai. Dibungkus rescue(): kalau penulisan notifikasi gagal,
  * errornya dicatat di log, tetapi aksi utamanya (tiket tersimpan, status berubah) TIDAK ikut gagal.
@@ -42,7 +50,8 @@ class TicketNotifier
             $ticket->loadMissing('reporter', 'faculty');
 
             $this->notify($ticket->reporter, $ticket, "Tiket {$ticket->ticket_number} berhasil dibuat",
-                "\"{$ticket->title}\" diterima {$ticket->faculty->code}. Target penyelesaian {$ticket->sla_target_hours} jam. Simpan nomor tiket ini.");
+                "\"{$ticket->title}\" diterima {$ticket->faculty->code}. Target penyelesaian {$ticket->sla_target_hours} jam. Simpan nomor tiket ini.",
+                new TicketCreatedMail($ticket));
         });
     }
 
@@ -60,7 +69,10 @@ class TicketNotifier
                 default => ["Status tiket {$ticket->ticket_number}: {$ticket->status->label()}", $ticket->title],
             };
 
-            $this->notify($ticket->reporter, $ticket, $subject, $message);
+            // Selesai -> email khusus dengan link rating (F-NTF-04); Diproses/Ditolak -> email perubahan status (F-NTF-02).
+            $mail = $ticket->status === TicketStatus::Selesai ? new TicketResolvedMail($ticket) : new TicketStatusChangedMail($ticket);
+
+            $this->notify($ticket->reporter, $ticket, $subject, $message, $mail);
         });
     }
 
@@ -76,7 +88,8 @@ class TicketNotifier
             $author = $comment->user;
 
             if ($author->isStaff() && $author->id !== $ticket->reporter_id) {
-                $this->notify($ticket->reporter, $ticket, self::REPLY_SUBJECT.": {$ticket->ticket_number}", Str::limit($comment->body, 300));
+                $this->notify($ticket->reporter, $ticket, self::REPLY_SUBJECT.": {$ticket->ticket_number}", Str::limit($comment->body, 300),
+                    new StaffRepliedMail($comment));
             }
 
             // Tepat saat pesan publik ke-20 tersimpan (sekali saja): beri tahu pelapor & Staff penangan.
@@ -85,16 +98,33 @@ class TicketNotifier
                     ->filter(fn (?User $user) => $user !== null && $user->is_active)
                     ->each(fn (User $user) => $this->notify($user, $ticket,
                         "Thread {$ticket->ticket_number} mencapai batas ".Ticket::THREAD_LIMIT.' pesan',
-                        'Pesan baru tidak bisa dikirim lagi. Staff penangan dapat langsung menyelesaikan atau menutup tiket ini.'));
+                        'Pesan baru tidak bisa dikirim lagi. Staff penangan dapat langsung menyelesaikan atau menutup tiket ini.',
+                        new ThreadLimitMail($ticket)));
             }
         });
     }
 
     /**
-     * Kirim satu notifikasi ke satu user. Sekarang: baris in-app saja.
-     * (Titik untuk menambah email nanti: $user->notify(new ...) di sini.)
+     * [M6] Pengingat rating untuk tiket Selesai yang belum dinilai (dipanggil RatingReminderService).
+     * Tidak dibungkus rescue() di sini: perintah artisan-nya yang mencatat kegagalan per tiket.
      */
-    private function notify(User $user, Ticket $ticket, string $subject, string $message): void
+    public function ratingReminder(Ticket $ticket, int $number): void
+    {
+        $ticket->loadMissing('reporter');
+
+        $this->notify($ticket->reporter, $ticket, "Pengingat: beri penilaian tiket {$ticket->ticket_number}",
+            "Tiket \"{$ticket->title}\" sudah selesai tetapi belum dinilai. Klik untuk memberi penilaian 1–5 bintang.",
+            new RatingReminderMail($ticket, $number));
+    }
+
+    /**
+     * Kirim satu notifikasi ke satu user: baris in-app, lalu (M6) email bila ada.
+     *
+     * Email dikirim lewat $user->notify(): masuk antrean (ShouldQueue), jadi di sini hanya "dicatat untuk dikirim".
+     * Dibungkus rescue() sendiri: kalau antrean/SMTP bermasalah, notifikasi in-app untuk penerima lain tetap jalan
+     * dan aksi utamanya tidak gagal. Errornya tercatat di storage/logs/laravel.log.
+     */
+    private function notify(User $user, Ticket $ticket, string $subject, string $message, ?HelpdeskMail $mail = null): void
     {
         Notification::create([
             'user_id' => $user->id,
@@ -105,5 +135,9 @@ class TicketNotifier
             'is_read' => false,
             'sent_at' => now(),
         ]);
+
+        if ($mail !== null && $user->canReceiveEmail()) {
+            rescue(fn () => $user->notify($mail));
+        }
     }
 }

@@ -18,7 +18,7 @@
     <x-ui.card class="mb-4">
         <form method="GET" action="{{ route('admin.queue') }}" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <x-ui.select name="status" label="Status" :options="QueueController::STATUS_OPTIONS" :selected="$filters['status']" />
-            <x-ui.select name="sla" label="Penanda SLA" placeholder="Semua" :options="QueueController::SLA_OPTIONS" :selected="$filters['sla']" />
+            <x-ui.select name="sla" label="Status Batas Waktu" placeholder="Semua" :options="QueueController::SLA_OPTIONS" :selected="$filters['sla']" />
             <x-ui.select name="category" label="Kelompok / Jenis Masalah" placeholder="Semua kategori" :options="$categoryOptions" :selected="$filters['category']" />
             <x-ui.select name="type" label="Jenis pelapor" placeholder="Semua"
                          :options="collect(UserType::cases())->mapWithKeys(fn ($type) => [$type->value => $type->label()])->all()"

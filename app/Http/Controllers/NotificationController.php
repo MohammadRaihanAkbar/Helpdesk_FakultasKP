@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Enums\TicketStatus;
+use App\Models\Notification;
 use App\Models\Ticket;
 use App\Models\User;
+use App\Services\Auth\AlumniVerificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -49,7 +51,7 @@ class NotificationController extends Controller
             return response()->json(['success' => true, 'data' => $item->fresh()]);
         }
 
-        $url = $item->ticket ? self::ticketUrl($request->user(), $item->ticket) : null;
+        $url = $item->ticket ? self::ticketUrl($request->user(), $item->ticket) : self::otherUrl($request->user(), $item);
 
         return $url ? redirect($url) : back();
     }
@@ -64,6 +66,14 @@ class NotificationController extends Controller
         }
 
         return back()->with('status', 'Semua notifikasi ditandai sudah dibaca.');
+    }
+
+    /** [M6] Notifikasi tanpa tiket: "Pendaftaran alumni baru" -> halaman Verifikasi Alumni (Admin). */
+    public static function otherUrl(User $user, Notification $item): ?string
+    {
+        return $user->isAdmin() && str_starts_with($item->subject, AlumniVerificationService::REGISTERED_SUBJECT)
+            ? route('admin.alumni.index')
+            : null;
     }
 
     /** Halaman tiket yang cocok untuk peran penerima notifikasi. */

@@ -36,12 +36,12 @@ class LoginPageTest extends TestCase
         // 6 fakultas aktif, 11 jenis layanan (leaf katalog standar), SLA tercepat 24 jam.
         $this->get('/login')
             ->assertSeeInOrder(['FITK', 'FUA', 'FDKI', 'FEBI', 'FASYA', 'FASTIH'])
-            ->assertSeeInOrder(['6', 'Fakultas terhubung', '11', 'Jenis layanan', '24 jam', 'SLA tercepat']);
+            ->assertSeeInOrder(['6', 'Fakultas terhubung', '11', 'Jenis layanan', '24 jam', 'Target tercepat']);
     }
 
     public function test_login_showcase_shows_a_dash_without_data(): void
     {
-        $this->get('/login')->assertOk()->assertSeeInOrder(['0', 'Fakultas terhubung', '0', 'Jenis layanan', '–', 'SLA tercepat']);
+        $this->get('/login')->assertOk()->assertSeeInOrder(['0', 'Fakultas terhubung', '0', 'Jenis layanan', '–', 'Target tercepat']);
     }
 
     public function test_login_page_does_not_link_to_the_hidden_registration(): void

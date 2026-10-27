@@ -34,7 +34,7 @@
 
                 <dl class="mt-4 grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
                     <div><dt class="text-muted">Kategori</dt><dd class="font-semibold">{{ $ticket->category->pathLabel() }}</dd></div>
-                    <div><dt class="text-muted">Fakultas tujuan</dt><dd class="font-semibold">{{ $ticket->faculty->code }} — {{ $ticket->faculty->name }}</dd></div>
+                    <div><dt class="text-muted">Fakultas tujuan</dt><dd class="font-semibold">{{ $ticket->faculty->code }} · {{ $ticket->faculty->name }}</dd></div>
                     <div>
                         <dt class="text-muted">Pelapor</dt>
                         <dd class="font-semibold">
@@ -48,7 +48,7 @@
                         </dd>
                     </div>
                     <div><dt class="text-muted">Jenis pelapor</dt><dd class="font-semibold">{{ $ticket->reporter_type->label() }}</dd></div>
-                    <div><dt class="text-muted">Target SLA</dt><dd class="font-mono font-semibold">{{ $ticket->sla_target_hours }} jam <span class="font-sans font-normal text-muted">(batas {{ $ticket->slaDeadline()->translatedFormat('j M Y, H:i') }})</span></dd></div>
+                    <div><dt class="text-muted">Target batas waktu</dt><dd class="font-mono font-semibold">{{ $ticket->sla_target_hours }} jam <span class="font-sans font-normal text-muted">(batas {{ $ticket->slaDeadline()->translatedFormat('j M Y, H:i') }})</span></dd></div>
                     <div><dt class="text-muted">Dibuat</dt><dd class="font-semibold">{{ $ticket->created_at->translatedFormat('j M Y, H:i') }}</dd></div>
                     <div class="sm:col-span-2">
                         <dt class="text-muted">Ditangani oleh</dt>
@@ -59,7 +59,7 @@
                                     <x-ui.badge tone="danger" class="ml-1">Akun nonaktif</x-ui.badge>
                                 @endif
                             @else
-                                <span class="text-menunggu-fg">Belum diambil — menunggu di antrean</span>
+                                <span class="text-menunggu-fg">Belum diambil (menunggu di antrean)</span>
                             @endif
                         </dd>
                     </div>
@@ -86,7 +86,7 @@
             @if ($ticket->status === TicketStatus::Ditolak)
                 <x-ui.card title="Alasan penolakan">
                     <p class="text-[15px] whitespace-pre-line text-ditolak-fg">{{ $ticket->rejection_reason }}</p>
-                    <p class="mt-2 text-xs text-muted">Ditolak {{ $ticket->resolved_at?->translatedFormat('j M Y, H:i') }}. Tiket Ditolak tidak dihitung dalam SLA Compliance.</p>
+                    <p class="mt-2 text-xs text-muted">Ditolak {{ $ticket->resolved_at?->translatedFormat('j M Y, H:i') }}. Tiket Ditolak tidak dihitung dalam ketepatan waktu layanan.</p>
                 </x-ui.card>
             @elseif ($ticket->status === TicketStatus::Selesai)
                 <x-ui.card title="Bukti penyelesaian">
@@ -127,7 +127,7 @@
                         <x-ui.alert type="warning">
                             {{ $ticket->status === TicketStatus::Diproses
                                 ? 'Staff penangan sedang nonaktif, Ping tidak dapat dikirim.'
-                                : 'Belum ada Staff untuk kelompok ini — tetapkan spesialisasi terlebih dahulu.' }}
+                                : 'Belum ada Staff untuk kelompok ini (tetapkan spesialisasi terlebih dahulu).' }}
                         </x-ui.alert>
                         @if ($ticket->status === TicketStatus::Menunggu)
                             <x-ui.button variant="secondary" :href="route('admin.staff.index')" icon="users" class="mt-3 w-full">Atur Spesialisasi Staff</x-ui.button>
@@ -155,7 +155,7 @@
             @include('tickets._timeline', ['ticket' => $ticket, 'pings' => $ticket->pingLogs])
 
             @if ($ticket->isOpen())
-                <x-ui.card title="Target SLA">
+                <x-ui.card title="Target Batas Waktu">
                     <p class="text-sm text-muted">Batas: <b class="text-ink">{{ $ticket->slaDeadline()->translatedFormat('j M Y, H:i') }}</b></p>
                     <p class="mt-1 text-sm text-muted">
                         @if ($ticket->slaState() === 'overdue')

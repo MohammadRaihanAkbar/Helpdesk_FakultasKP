@@ -55,9 +55,10 @@ class AppLayoutTest extends TestCase
         $labels = fn (User $user) => array_column(Navigation::for($user), 'label');
 
         $this->assertSame(['Dashboard', 'Buat Tiket', 'Tiket Saya', 'Riwayat Tiket'], $labels(User::factory()->create()));
-        $this->assertSame(['Dashboard', 'Antrean Tiket', 'Tiket Saya', 'Riwayat Tiket'], $labels(User::factory()->staff()->create()));
-        $this->assertSame(['Dashboard', 'Monitor Antrean', 'Kelola Staff', 'Pengaturan Layanan', 'Laporan & Analitik'], $labels(User::factory()->admin()->create()));
+        $this->assertSame(['Dashboard', 'Antrean Tiket', 'Tiket Saya', 'Riwayat Tiket', 'Laporan Kerja'], $labels(User::factory()->staff()->create())); // M6: + Laporan Kerja
+        $this->assertSame(['Dashboard', 'Monitor Antrean', 'Kelola Staff', 'Pengaturan Layanan', 'Laporan & Analitik', 'Verifikasi Alumni'], $labels(User::factory()->admin()->create())); // M6: + Verifikasi Alumni
         $this->assertSame(['Dashboard', 'Fakultas', 'Pengguna'], $labels(User::factory()->superAdmin()->create()));
+        $this->assertSame(['Dashboard', 'Laporan & Ekspor'], $labels(User::factory()->dekan()->create())); // M6
     }
 
     public function test_my_tickets_menu_shows_number_of_active_tickets(): void

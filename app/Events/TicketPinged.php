@@ -11,11 +11,9 @@ use Illuminate\Support\Collection;
 /**
  * Peristiwa "Admin Fakultas mengirim Ping" (US-14, F-NTF-06).
  *
- * Dikirim SETELAH ping_logs & notifikasi in-app tersimpan (lihat PingService). Saat ini belum ada
- * pendengar (listener): email teguran sengaja ditunda di M5. Nanti cukup ditambahkan sebagai listener baru, misalnya:
+ * Dikirim SETELAH ping_logs & notifikasi in-app tersimpan (lihat PingService).
  *
- *   php artisan make:listener SendPingEmail --event=TicketPinged
- *
+ * [M6] Pendengarnya: App\Listeners\SendPingEmails (email teguran ke setiap Staff penerima).
  * Laravel menemukan listener di app/Listeners secara otomatis, jadi PingService tidak perlu diubah.
  */
 class TicketPinged

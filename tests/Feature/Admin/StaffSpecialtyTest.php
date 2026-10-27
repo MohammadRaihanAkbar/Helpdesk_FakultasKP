@@ -71,7 +71,7 @@ class StaffSpecialtyTest extends TestCase
     {
         $this->actingAs($this->admin)->get("/admin/staff/{$this->staff->id}/specialties")
             ->assertSee('Sensitif')
-            ->assertSee('Kategori sensitif — petakan hanya ke staf yang ditunjuk (mis. Dekanat/Penjaminan Mutu).');
+            ->assertSee('Kategori sensitif: petakan hanya ke staf yang ditunjuk (mis. Dekanat/Penjaminan Mutu).');
     }
 
     public function test_admin_saves_specialties_and_queue_follows_immediately(): void

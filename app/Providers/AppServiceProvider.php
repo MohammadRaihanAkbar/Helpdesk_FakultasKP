@@ -73,6 +73,9 @@ class AppServiceProvider extends ServiceProvider
 
         RateLimiter::for('alumni-registration', fn (Request $request) => Limit::perMinute(6)->by($request->ip()));
 
+        // [M6] Gambar captcha registrasi alumni: tombol "Ganti soal" boleh diklik beberapa kali, tetapi tidak dibanjiri skrip.
+        RateLimiter::for('captcha', fn (Request $request) => Limit::perMinute(30)->by($request->ip()));
+
         // Kirim tiket & balasan thread: 30/menit per AKUN (bukan per IP, karena Wi-Fi kampus berbagi IP).
         // Cukup longgar untuk pemakaian wajar, tapi menahan skrip yang membanjiri antrean.
         // Ping Admin (US-14): PRD tidak membatasi jumlah Ping, jadi ini hanya penahan skrip/klik beruntun

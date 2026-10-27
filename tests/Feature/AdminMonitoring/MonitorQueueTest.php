@@ -26,8 +26,8 @@ class MonitorQueueTest extends AdminTestCase
             ->assertOk()
             ->assertSeeInOrder(['Lama menunggu', 'Hampir lewat', 'Sedang diproses', 'Baru menunggu'])
             ->assertDontSee('Sudah selesai')
-            ->assertSee('Melewati SLA')
-            ->assertSee('Mendekati SLA')
+            ->assertSee('Melewati Target')
+            ->assertSee('Mendekati Batas Waktu')
             ->assertSee('Waktu menunggu')
             ->assertSee('1 hari 6 jam') // kolom "Waktu Menunggu" tiket merah
             ->assertSee('Ping / Ingatkan')

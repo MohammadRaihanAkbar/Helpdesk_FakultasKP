@@ -3,15 +3,20 @@
 
     - Read-only untuk semua akun: nama, email, NIM/NIP, peran, jenis pelapor, fakultas.
     - Cari NIM / NIP / email / nama (kotak pencarian top bar juga mengarah ke sini) + filter peran.
-    - Aksi HANYA untuk Pelapor & Admin Fakultas: Tunjuk Admin (pilih fakultas), Pindah fakultas, Cabut Admin.
-      Akun Staff dikelola Admin Fakultas; akun Super Admin tidak bisa diubah dari sini.
+    - Aksi HANYA untuk Pelapor, Admin Fakultas, dan Dekan: Tunjuk Admin / Tunjuk Dekan (pilih fakultas), Pindah fakultas,
+      Cabut. Akun Staff dikelola Admin Fakultas; akun Super Admin tidak bisa diubah dari sini.
+    - [M6] Tombol "Buat Akun Dekan" untuk dekan yang belum pernah login SSO.
 --}}
 @php
     use App\Enums\Role;
 @endphp
 
 <x-layouts.app title="Pengguna">
-    <x-page-header title="Pengguna" description="Seluruh akun terdaftar (hanya baca). Super Admin hanya bisa menunjuk dan mencabut Admin Fakultas." />
+    <x-page-header title="Pengguna" description="Seluruh akun terdaftar (hanya baca). Super Admin hanya bisa menunjuk dan mencabut Admin Fakultas serta Dekan.">
+        <x-slot:action>
+            <x-ui.button icon="plus" :href="route('superadmin.users.dekan.create')">Buat Akun Dekan</x-ui.button>
+        </x-slot:action>
+    </x-page-header>
 
     @if ($errors->hasAny(['faculty_id', 'action']))
         <x-ui.alert type="error" class="mb-4">{{ $errors->first('faculty_id') ?: $errors->first('action') }}</x-ui.alert>
@@ -70,12 +75,16 @@
                                     @endif
                                 </td>
                                 <td class="px-3 py-3.5">
-                                    <x-ui.badge :tone="match ($member->role) { Role::SuperAdmin => 'danger', Role::Admin => 'primary', Role::Staff => 'info', default => 'neutral' }">{{ $member->role->label() }}</x-ui.badge>
+                                    <x-ui.badge :tone="match ($member->role) { Role::SuperAdmin => 'danger', Role::Admin => 'primary', Role::Dekan => 'warning', Role::Staff => 'info', default => 'neutral' }">{{ $member->role->label() }}</x-ui.badge>
                                     @if ($member->user_type)
                                         <span class="mt-1 block text-xs text-muted">{{ $member->user_type->label() }}{{ $member->graduation_year ? ' '.$member->graduation_year : '' }}</span>
                                     @endif
                                     @unless ($member->is_active)
                                         <span class="mt-1 block text-xs text-ditolak-fg">nonaktif</span>
+                                    @endunless
+                                    @unless ($member->isApproved())
+                                        {{-- [M6] alumni yang menunggu verifikasi / ditolak Admin Fakultas --}}
+                                        <span class="mt-1 block text-xs text-menunggu-fg">{{ mb_strtolower($member->account_status->label()) }}</span>
                                     @endunless
                                 </td>
                                 <td class="px-3 py-3.5">
@@ -93,7 +102,6 @@
                                             <form method="POST" action="{{ route('superadmin.users.role', $member) }}" class="flex flex-wrap items-center justify-end gap-2">
                                                 @csrf
                                                 @method('PATCH')
-                                                <input type="hidden" name="action" value="appoint">
                                                 <label for="faculty-{{ $member->id }}" class="sr-only">Fakultas untuk {{ $member->name }}</label>
                                                 <select id="faculty-{{ $member->id }}" name="faculty_id" required
                                                         class="min-h-10 max-w-48 rounded-control border border-line bg-surface px-2 text-sm text-ink shadow-sm focus:border-accent focus:ring-4 focus:ring-accent/30 focus:outline-none">
@@ -102,15 +110,23 @@
                                                         <option value="{{ $id }}" @selected($member->faculty_id === $id)>{{ $label }}</option>
                                                     @endforeach
                                                 </select>
-                                                <button type="submit" class="inline-flex min-h-10 items-center rounded-control bg-primary-soft px-3 font-heading text-sm font-extrabold text-primary hover:brightness-95">
-                                                    {{ $member->isAdmin() ? 'Pindah' : 'Tunjuk Admin' }}<span class="sr-only"> {{ $member->name }}</span>
-                                                </button>
+                                                {{-- [M6] Dua tombol kirim dengan name="action": nilai tombol yang diklik ikut terkirim. --}}
+                                                @unless ($member->isDekan())
+                                                    <button type="submit" name="action" value="appoint" class="inline-flex min-h-10 items-center rounded-control bg-primary-soft px-3 font-heading text-sm font-extrabold text-primary hover:brightness-95">
+                                                        {{ $member->isAdmin() ? 'Pindah' : 'Tunjuk Admin' }}<span class="sr-only"> {{ $member->name }}</span>
+                                                    </button>
+                                                @endunless
+                                                @unless ($member->isAdmin())
+                                                    <button type="submit" name="action" value="appoint_dekan" class="inline-flex min-h-10 items-center rounded-control bg-accent-soft px-3 font-heading text-sm font-extrabold text-accent-ink hover:brightness-95">
+                                                        {{ $member->isDekan() ? 'Pindah' : 'Tunjuk Dekan' }}<span class="sr-only"> {{ $member->name }}</span>
+                                                    </button>
+                                                @endunless
                                             </form>
-                                            @if ($member->isAdmin())
+                                            @if ($member->isAdmin() || $member->isDekan())
                                                 <x-ui.confirm-form :action="route('superadmin.users.role', $member)" method="PATCH" compact
-                                                                   trigger-label="Cabut Admin" title="Cabut peran Admin {{ $member->name }}?" confirm-label="Ya, cabut">
+                                                                   trigger-label="Cabut {{ $member->isDekan() ? 'Dekan' : 'Admin' }}" title="Cabut peran {{ $member->role->label() }} {{ $member->name }}?" confirm-label="Ya, cabut">
                                                     <x-slot:fields><input type="hidden" name="action" value="revoke"></x-slot:fields>
-                                                    Akun ini kembali menjadi Pelapor dan tidak bisa membuka halaman Admin {{ $member->faculty?->code }} lagi.
+                                                    Akun ini kembali menjadi Pelapor dan tidak bisa membuka halaman {{ $member->role->label() }} {{ $member->faculty?->code }} lagi.
                                                     @if (! $member->user_type)
                                                         Akun ini tidak punya jenis pelapor (bukan akun SSO), jadi setelah dicabut ia tidak bisa membuat tiket.
                                                     @endif

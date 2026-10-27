@@ -55,7 +55,7 @@ class ServiceSettingsTest extends TestCase
 
         $this->actingAs($this->admin)->get('/admin/services')
             ->assertOk()
-            ->assertSee('Pengaturan Layanan — FITK')
+            ->assertSee('Pengaturan Layanan: FITK')
             ->assertSeeInOrder(['Sistem Akademik &amp; Perkuliahan', 'Nilai belum muncul', 'KRS belum di-ACC', 'Jadwal mata kuliah'], false)
             ->assertSee('Standar')
             ->assertSee('Tambahan')

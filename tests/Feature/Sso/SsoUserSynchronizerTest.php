@@ -115,4 +115,30 @@ class SsoUserSynchronizerTest extends TestCase
 
         $this->assertSame($febi, $user->origin_faculty_id);
     }
+
+    // ---------- [M6] email dari SSO = alamat tujuan email notifikasi ----------
+
+    public function test_email_is_refreshed_from_sso_on_every_login(): void
+    {
+        $this->sync($this->mahasiswa(['email' => null])); // login pertama: Bridge belum mengirim email
+        $this->assertSame('2210110001@'.config('sso.email_fallback_domain'), User::where('nim', '2210110001')->value('email'));
+        $this->assertFalse(User::where('nim', '2210110001')->first()->canReceiveEmail());
+
+        $user = $this->sync($this->mahasiswa(['email' => 'Ahmad.Baru@Gmail.com']));
+        $this->assertSame('ahmad.baru@gmail.com', $user->email);
+        $this->assertTrue($user->canReceiveEmail());
+
+        $user = $this->sync($this->mahasiswa(['email' => 'ahmad@uinssc.ac.id']));
+        $this->assertSame('ahmad@uinssc.ac.id', $user->email);
+        $this->assertSame(1, User::where('nim', '2210110001')->count());
+    }
+
+    public function test_real_email_is_never_replaced_by_the_placeholder_or_an_invalid_value(): void
+    {
+        $this->sync($this->mahasiswa(['email' => 'ahmad@gmail.com']));
+
+        foreach ([null, '', 'bukan-email', '2210110001@'.config('sso.email_fallback_domain')] as $email) {
+            $this->assertSame('ahmad@gmail.com', $this->sync($this->mahasiswa(['email' => $email]))->email);
+        }
+    }
 }

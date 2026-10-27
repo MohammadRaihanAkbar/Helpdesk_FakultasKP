@@ -18,13 +18,13 @@
 @endphp
 
 @if ($state === 'overdue')
-    <x-ui.badge tone="danger" {{ $attributes }}>Melewati SLA</x-ui.badge>
+    <x-ui.badge tone="danger" {{ $attributes }}>Melewati Target</x-ui.badge>
 @elseif ($state === 'near')
-    <x-ui.badge tone="warning" {{ $attributes }}>Mendekati SLA</x-ui.badge>
+    <x-ui.badge tone="warning" {{ $attributes }}>Mendekati Batas Waktu</x-ui.badge>
 @elseif ($state === 'ok' && ! $quiet)
     <x-ui.badge {{ $attributes }}>Sisa ± {{ max(1, (int) floor(now()->diffInHours($ticket->slaDeadline()))) }} jam</x-ui.badge>
 @elseif ($met === true)
-    <x-ui.badge tone="success" {{ $attributes }}>Sesuai SLA</x-ui.badge>
+    <x-ui.badge tone="success" {{ $attributes }}>Sesuai Target</x-ui.badge>
 @elseif ($met === false)
-    <x-ui.badge tone="danger" {{ $attributes }}>Melewati SLA</x-ui.badge>
+    <x-ui.badge tone="danger" {{ $attributes }}>Melewati Target</x-ui.badge>
 @endif

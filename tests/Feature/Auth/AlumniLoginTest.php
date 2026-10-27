@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Auth;
 
+use App\Enums\AccountStatus;
 use App\Enums\UserType;
 use App\Models\Faculty;
 use App\Models\User;
@@ -46,9 +47,13 @@ class AlumniLoginTest extends TestCase
             'origin_faculty_id' => $this->faculty->id,
             'password' => 'rahasia123',
             'password_confirmation' => 'rahasia123',
-        ], $overrides))->assertRedirect('/login')->assertSessionHasNoErrors();
+        ], $overrides))->assertRedirect(route('register.alumni.done'))->assertSessionHasNoErrors();
 
         $this->assertGuest();
+
+        // [M6] Akun baru menunggu verifikasi Admin Fakultas. Tes di file ini tentang LOGIN setelah akun aktif,
+        // jadi akunnya langsung disetujui di sini (alur verifikasinya dites di Tests\Feature\Alumni).
+        User::latest('id')->firstOrFail()->forceFill(['account_status' => AccountStatus::Approved])->save();
     }
 
     private function registeredUser(): User

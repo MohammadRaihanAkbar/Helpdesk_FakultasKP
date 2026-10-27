@@ -34,7 +34,7 @@
         </h2>
         <p class="mt-5 max-w-xl text-base leading-relaxed text-muted lg:text-lg">
             Laporkan kendala akademik, administrasi, fasilitas, hingga jaringan kampus.
-            Tiket Anda diteruskan ke staf yang tepat dan dipantau dengan target SLA yang jelas.
+            Tiket Anda diteruskan ke staf yang tepat dan dipantau dengan target waktu yang jelas.
         </p>
 
         @if ($facultyCodes->isNotEmpty())
@@ -57,9 +57,9 @@
                 <dd class="mt-1 text-sm text-muted" aria-hidden="true">Jenis layanan</dd>
             </div>
             <div class="pl-4">
-                <dt class="sr-only">SLA tercepat</dt>
+                <dt class="sr-only">Target tercepat</dt>
                 <dd class="font-heading text-2xl font-extrabold text-primary sm:text-3xl">{{ $fastestSla ? $fastestSla.' jam' : '–' }}</dd>
-                <dd class="mt-1 text-sm text-muted" aria-hidden="true">SLA tercepat</dd>
+                <dd class="mt-1 text-sm text-muted" aria-hidden="true">Target tercepat</dd>
             </div>
         </dl>
 

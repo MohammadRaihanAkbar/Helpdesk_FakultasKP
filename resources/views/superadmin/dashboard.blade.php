@@ -13,7 +13,7 @@
     <x-dashboard-greeting :user="$user">
         Gambaran se-universitas: <b>{{ $cards['faculties_active'] }} fakultas aktif</b>, <b>{{ $kpi['total'] }} tiket</b> sejak awal
         @if ($gaps->isNotEmpty())
-            — <b>{{ $gaps->count() }} fakultas</b> punya Kelompok Layanan tanpa Staff.
+            <b>{{ $gaps->count() }} fakultas</b> punya Kelompok Layanan tanpa Staff.
         @else
             dan semua fakultas aktif sudah punya Staff di setiap Kelompok Layanan.
         @endif
@@ -36,14 +36,14 @@
         <x-kpi-card label="Rata-rata CSAT" :value="$kpi['csat'] === null ? null : number_format($kpi['csat'], 1, ',', '.').' / 5'" icon="star" tone="bg-accent-soft text-accent-ink"
                     :note="$kpi['rated'] ? 'dari '.$kpi['rated'].' rating · target ≥ 4,0' : 'belum ada rating · target ≥ 4,0'"
                     :status="$kpi['csat'] === null ? null : ($kpi['csat'] >= 4 ? 'good' : 'bad')" />
-        <x-kpi-card label="SLA Compliance" :value="$kpi['sla_rate']" suffix="%" icon="shield-check" tone="bg-selesai-bg text-selesai-fg"
+        <x-kpi-card label="Ketepatan Waktu" :value="$kpi['sla_rate']" suffix="%" icon="shield-check" tone="bg-selesai-bg text-selesai-fg"
                     :note="$kpi['selesai'] ? $kpi['sla_met'].' dari '.$kpi['selesai'].' selesai · target ≥ 85%' : 'belum ada tiket selesai · target ≥ 85%'"
                     :status="$kpi['sla_rate'] === null ? null : ($kpi['sla_rate'] >= 85 ? 'good' : 'bad')" />
     </section>
 
     <div class="grid gap-4 lg:grid-cols-[1.5fr_1fr]">
         {{-- 2. Ringkasan per fakultas --}}
-        <x-ui.card title="Ringkasan per Fakultas" description="Seluruh tiket sejak awal. SLA Compliance hanya menghitung tiket Selesai."
+        <x-ui.card title="Ringkasan per Fakultas" description="Seluruh tiket sejak awal. Ketepatan waktu hanya menghitung tiket Selesai."
                    class="min-w-0 p-0! md:p-0! [&>header]:px-4 [&>header]:pt-4 md:[&>header]:px-5 md:[&>header]:pt-5">
             <div class="overflow-x-auto border-t border-line">
                 <table class="w-full min-w-[34rem] text-left text-sm">
@@ -52,7 +52,7 @@
                             <th scope="col" class="px-5 py-3">Fakultas</th>
                             <th scope="col" class="px-3 py-3 text-center">Tiket</th>
                             <th scope="col" class="px-3 py-3 text-center">Selesai</th>
-                            <th scope="col" class="px-3 py-3 text-center">SLA</th>
+                            <th scope="col" class="px-3 py-3 text-center">Ketepatan</th>
                             <th scope="col" class="px-5 py-3 text-center">CSAT</th>
                         </tr>
                     </thead>

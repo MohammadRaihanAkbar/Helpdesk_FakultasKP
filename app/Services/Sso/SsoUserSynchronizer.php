@@ -2,6 +2,7 @@
 
 namespace App\Services\Sso;
 
+use App\Enums\AccountStatus;
 use App\Enums\Role;
 use App\Enums\UserType;
 use App\Models\Faculty;
@@ -16,7 +17,7 @@ use Illuminate\Support\Str;
  *   - Selalu sinkronkan: nama, email, user_type, graduation_year, program_studi, origin_faculty_id.
  *     -> mahasiswa yang sudah lulus otomatis berubah menjadi alumni.
  *   - TIDAK PERNAH mengubah role dan faculty_id. Dosen yang ditunjuk Super Admin menjadi
- *     Admin Fakultas tetap Admin walau login lewat SSO.
+ *     Admin Fakultas (atau Dekan, M6) tetap pada perannya walau login lewat SSO.
  *   - Password SSO tidak disimpan. User baru diberi password acak (kolom password wajib diisi).
  *   - Akun alumni hidden link yang NIM-nya ternyata ada di SSO: password lokalnya diganti acak.
  */
@@ -47,6 +48,12 @@ class SsoUserSynchronizer
         // pendaftar hidden link tidak bisa lagi masuk ke akun ini lewat email/NIM + password lamanya.
         if ($user->exists && $user->isHiddenLinkAlumni()) {
             $user->password = Str::random(40);
+        }
+
+        // [M6] Login SSO berhasil = identitasnya sudah diverifikasi kampus. Kalau barisnya berasal dari pendaftaran
+        // hidden link yang masih menunggu / ditolak, statusnya langsung disetujui supaya pemilik NIM yang sah bisa masuk.
+        if ($user->exists && ! $user->isApproved()) {
+            $user->forceFill(['account_status' => AccountStatus::Approved, 'verified_at' => now(), 'verified_by' => null, 'rejection_reason' => null]);
         }
 
         $user->fill([
@@ -111,12 +118,18 @@ class SsoUserSynchronizer
     /**
      * Email dari SSO jika ada dan belum dipakai akun lain.
      * Kalau kosong: pakai email lama (user lama) atau {nim|nip}@{domain pengganti}.
+     *
+     * [M6] Email sekarang dipakai untuk MENGIRIM notifikasi, jadi aturannya dipertegas (dites di SsoUserSynchronizerTest):
+     *   - setiap login, email dari Bridge /profil MENIMPA email lama (termasuk email pengganti) -> selalu yang terbaru;
+     *   - email dari SSO yang tidak valid atau berdomain pengganti diabaikan;
+     *   - email asli TIDAK PERNAH ditimpa email pengganti: kalau Bridge kali ini tidak mengirim email, email lama dipakai.
+     * Akun yang emailnya masih email pengganti hanya menerima notifikasi in-app (User::canReceiveEmail()).
      */
     private function resolveEmail(SsoProfile $profile, User $user): string
     {
-        $email = $profile->email ? Str::lower($profile->email) : null;
+        $email = $profile->email ? Str::lower(trim($profile->email)) : null;
 
-        if ($email !== null) {
+        if ($email !== null && filter_var($email, FILTER_VALIDATE_EMAIL) !== false && ! User::isPlaceholderEmail($email)) {
             $takenByOther = User::where('email', $email)
                 ->when($user->exists, fn ($q) => $q->whereKeyNot($user->getKey()))
                 ->exists();

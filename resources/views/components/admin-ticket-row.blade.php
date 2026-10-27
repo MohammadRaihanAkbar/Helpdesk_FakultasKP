@@ -47,7 +47,7 @@
             <p class="text-muted">
                 {{ $ticket->status === TicketStatus::Menunggu ? 'Waktu menunggu' : 'Umur tiket' }}
                 <span @class(['font-mono font-semibold', 'text-ditolak-fg' => $ticket->slaState() === 'overdue', 'text-ink' => $ticket->slaState() !== 'overdue'])>{{ Format::duration($ticket->created_at, now()) }}</span>
-                <span class="text-xs">/ SLA {{ $ticket->sla_target_hours }} jam</span>
+                <span class="text-xs">/ target {{ $ticket->sla_target_hours }} jam</span>
             </p>
             @if ($ticket->assigned_at)
                 <p class="text-xs text-muted">Diambil {{ $ticket->assigned_at->diffForHumans() }}</p>
@@ -55,7 +55,7 @@
                 <p class="text-xs text-muted">Dibuat {{ $ticket->created_at->translatedFormat('j M Y, H:i') }}</p>
             @endif
         @else
-            <p class="text-muted">SLA <span class="font-mono font-semibold text-ink">{{ $ticket->sla_target_hours }} jam</span></p>
+            <p class="text-muted">Target <span class="font-mono font-semibold text-ink">{{ $ticket->sla_target_hours }} jam</span></p>
             <p class="text-xs text-muted">Ditutup {{ $ticket->resolved_at?->translatedFormat('j M Y, H:i') }}</p>
         @endif
         <div class="flex flex-wrap items-start gap-2 md:justify-end">

@@ -18,6 +18,8 @@ enum Role: string
     case Staff = 'staff';
     case Admin = 'admin';
     case SuperAdmin = 'super_admin';
+    /** [M6] Pimpinan fakultas: hanya memantau dashboard statistik & mengekspor laporan fakultasnya (users.faculty_id). */
+    case Dekan = 'dekan';
 
     /** Nama peran yang ditampilkan di UI (Bahasa Indonesia). */
     public function label(): string
@@ -27,6 +29,7 @@ enum Role: string
             self::Staff => 'Staff Fakultas',
             self::Admin => 'Admin Fakultas',
             self::SuperAdmin => 'Super Admin',
+            self::Dekan => 'Dekan',
         };
     }
 
@@ -41,6 +44,7 @@ enum Role: string
             self::Staff => 'staff.dashboard',
             self::Admin => 'admin.dashboard',
             self::SuperAdmin => 'superadmin.dashboard',
+            self::Dekan => 'dekan.dashboard',
         };
     }
 }

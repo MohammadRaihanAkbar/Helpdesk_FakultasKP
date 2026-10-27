@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Route;
  *
  * Status per M5: keempat peran sudah punya semua menunya (PRD 7.5), termasuk Super Admin
  * (Dashboard, Fakultas, Pengguna).
+ * M6: peran Dekan (Dashboard, Laporan & Ekspor), menu Laporan Kerja untuk Staff, dan Verifikasi Alumni untuk Admin.
  */
 class Navigation
 {
@@ -80,6 +81,7 @@ class Navigation
      *   Staff "Antrean Tiket" -> tiket Menunggu sesuai spesialisasi
      *   Staff "Tiket Saya"    -> tiket Diproses yang sedang ia tangani
      *   Admin "Monitor Antrean" -> Tiket Menganggur (Menunggu + sudah melewati SLA) di fakultasnya
+     *   Admin "Verifikasi Alumni" -> [M6] pendaftar alumni yang menunggu verifikasi
      */
     private static function count(User $user, string $route): ?int
     {
@@ -92,6 +94,7 @@ class Navigation
                 ->get(['id', 'status', 'created_at', 'sla_target_hours'])
                 ->filter(fn (Ticket $ticket) => $ticket->slaState() === 'overdue')
                 ->count(),
+            'admin.alumni.index' => $user->faculty_id === null ? null : User::pendingAlumniOf($user->faculty_id)->count(),
             default => null,
         };
     }
@@ -109,9 +112,10 @@ class Navigation
             Role::Staff => ['staff.queue', 'Cari nomor tiket…'],
             Role::Admin => ['admin.queue', 'Cari nomor tiket…'],
             Role::SuperAdmin => ['superadmin.users.index', 'Cari NIM / NIP / email…'],
+            Role::Dekan => [null, null], // Dekan tidak membuka tiket satu per satu -> tanpa kotak cari
         };
 
-        return Route::has($route) ? ['url' => route($route), 'placeholder' => $placeholder] : null;
+        return $route !== null && Route::has($route) ? ['url' => route($route), 'placeholder' => $placeholder] : null;
     }
 
     /** Teks kartu hijau di bawah sidebar (mockup A), disesuaikan per peran. */
@@ -122,6 +126,7 @@ class Navigation
             Role::Staff => ['Kerjakan yang terlama dulu', 'Antrean diurutkan dari tiket terlama. Perhatikan tanda SLA kuning dan merah.'],
             Role::Admin => ['Pantau tiket menganggur', 'Gunakan Ping untuk mengingatkan Staff bila tiket terlalu lama menunggu.'],
             Role::SuperAdmin => ['Satu katalog, enam fakultas', 'Fakultas baru otomatis mendapat Katalog Kategori Layanan Standar.'],
+            Role::Dekan => ['Pantau, lalu unduh', 'Semua angka dari data tiket fakultas. Unduh laporan CSV/Excel untuk rapat pimpinan.'],
         };
     }
 
@@ -144,6 +149,7 @@ class Navigation
                 ['route' => 'staff.queue', 'label' => 'Antrean Tiket', 'short' => 'Antrean', 'icon' => 'inbox'],
                 ['route' => 'staff.tickets.index', 'label' => 'Tiket Saya', 'icon' => 'ticket', 'match' => ['staff.tickets.*']],
                 ['route' => 'staff.history', 'label' => 'Riwayat Tiket', 'short' => 'Riwayat', 'icon' => 'history', 'match' => ['staff.history', 'staff.history.*']],
+                ['route' => 'staff.laporan', 'label' => 'Laporan Kerja', 'short' => 'Laporan', 'icon' => 'chart', 'match' => ['staff.laporan*']],
             ],
             Role::Admin => [
                 ['route' => 'admin.dashboard', 'label' => 'Dashboard', 'icon' => 'layout-dashboard'],
@@ -151,11 +157,18 @@ class Navigation
                 ['route' => 'admin.staff.index', 'label' => 'Kelola Staff', 'short' => 'Staff', 'icon' => 'users', 'match' => ['admin.staff.*']],
                 ['route' => 'admin.services.index', 'label' => 'Pengaturan Layanan', 'short' => 'Layanan', 'icon' => 'sliders', 'match' => ['admin.services.*']],
                 ['route' => 'admin.reports.index', 'label' => 'Laporan & Analitik', 'short' => 'Laporan', 'icon' => 'chart', 'match' => ['admin.reports.*']],
+                // [M6] Menu ke-6: di HP tidak muat di bottom nav (maks. 5), jadi dashboard Admin menampilkan kotak pengingatnya.
+                ['route' => 'admin.alumni.index', 'label' => 'Verifikasi Alumni', 'short' => 'Alumni', 'icon' => 'graduation-cap', 'match' => ['admin.alumni.*']],
             ],
             Role::SuperAdmin => [
                 ['route' => 'superadmin.dashboard', 'label' => 'Dashboard', 'icon' => 'layout-dashboard'],
                 ['route' => 'superadmin.faculties.index', 'label' => 'Fakultas', 'icon' => 'landmark', 'match' => ['superadmin.faculties.*']],
                 ['route' => 'superadmin.users.index', 'label' => 'Pengguna', 'icon' => 'users', 'match' => ['superadmin.users.*']],
+            ],
+            // [M6] Dekan: hanya baca. Tidak ada antrean, tiket, staff, atau pengaturan layanan.
+            Role::Dekan => [
+                ['route' => 'dekan.dashboard', 'label' => 'Dashboard', 'icon' => 'layout-dashboard'],
+                ['route' => 'dekan.laporan', 'label' => 'Laporan & Ekspor', 'short' => 'Laporan', 'icon' => 'chart', 'match' => ['dekan.laporan*']],
             ],
         };
     }

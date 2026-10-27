@@ -50,13 +50,13 @@ class QueueTest extends StaffTestCase
         // KRS: SLA 24 jam. 30 jam lalu = lewat; 20 jam lalu = sisa 4 jam (< 25% dari 24 = 6 jam) = mendekati.
         $this->waiting(null, ['title' => 'Lewat SLA', 'created_at' => now()->subHours(30)]);
 
-        $this->actingAs($this->akademik)->get('/staff/queue')->assertSee('Melewati SLA')->assertDontSee('Mendekati SLA');
+        $this->actingAs($this->akademik)->get('/staff/queue')->assertSee('Melewati Target')->assertDontSee('Mendekati Batas Waktu');
 
         Ticket::query()->update(['created_at' => now()->subHours(20)]);
-        $this->actingAs($this->akademik)->get('/staff/queue')->assertSee('Mendekati SLA')->assertDontSee('Melewati SLA');
+        $this->actingAs($this->akademik)->get('/staff/queue')->assertSee('Mendekati Batas Waktu')->assertDontSee('Melewati Target');
 
         Ticket::query()->update(['created_at' => now()->subHours(2)]);
-        $this->actingAs($this->akademik)->get('/staff/queue')->assertDontSee('Mendekati SLA')->assertDontSee('Melewati SLA');
+        $this->actingAs($this->akademik)->get('/staff/queue')->assertDontSee('Mendekati Batas Waktu')->assertDontSee('Melewati Target');
     }
 
     public function test_filters_group_reporter_type_date_and_search(): void
@@ -128,7 +128,7 @@ class QueueTest extends StaffTestCase
 
         $counts = collect(Navigation::for($this->akademik))->pluck('count', 'label');
 
-        $this->assertSame(['Dashboard', 'Antrean Tiket', 'Tiket Saya', 'Riwayat Tiket'], $counts->keys()->all());
+        $this->assertSame(['Dashboard', 'Antrean Tiket', 'Tiket Saya', 'Riwayat Tiket', 'Laporan Kerja'], $counts->keys()->all()); // M6: + Laporan Kerja
         $this->assertSame(2, $counts['Antrean Tiket']);
         $this->assertSame(1, $counts['Tiket Saya']);
     }

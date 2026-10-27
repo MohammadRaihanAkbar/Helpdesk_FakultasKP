@@ -35,6 +35,8 @@
         <!-- Test tidak boleh menghubungi SSO kampus & tidak memakai kunci hidden link dari .env -->
         <env name="SSO_DRIVER" value="fake"/>
         <env name="ALUMNI_REGISTRATION_KEY" value=""/>
+        <!-- [M6] Captcha registrasi alumni dimatikan untuk tes lama; tes captcha menyalakannya sendiri -->
+        <env name="CAPTCHA_ENABLED" value="false"/>
     </php>
 </phpunit>
 

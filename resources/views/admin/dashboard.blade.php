@@ -20,9 +20,9 @@
             Admin {{ $user->faculty->name }}.
             Ada <b>{{ $cards['menunggu'] }} tiket menunggu</b>
             @if ($idleTotal)
-                — <b>{{ $idleTotal }} di antaranya menganggur melewati SLA</b>.
+                , <b>{{ $idleTotal }} di antaranya menganggur melewati batas waktu</b>.
             @else
-                dan tidak ada yang melewati SLA.
+                dan tidak ada yang melewati batas waktu.
             @endif
         @endif
         <x-slot:action>
@@ -40,6 +40,14 @@
             <p class="text-sm text-muted">Akun Anda belum ditugaskan ke fakultas. Hubungi Super Admin.</p>
         </x-ui.card>
     @else
+        {{-- [M6] Pengingat pendaftar alumni (menu Verifikasi Alumni tidak muat di bottom nav HP). --}}
+        @if ($pendingAlumni ?? 0)
+            <x-ui.alert type="warning" class="mb-4">
+                <b>{{ $pendingAlumni }} pendaftaran alumni</b> menunggu verifikasi Anda.
+                <a href="{{ route('admin.alumni.index') }}" class="font-bold text-primary underline underline-offset-4">Buka Verifikasi Alumni</a>
+            </x-ui.alert>
+        @endif
+
         {{-- 1. Kartu operasional (US-10) --}}
         <section aria-label="Ringkasan operasional" class="mb-3 grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4 xl:grid-cols-5">
             <x-kpi-card label="Tiket Masuk" :value="$cards['masuk_bulan_ini']" :note="'bulan '.$monthName" icon="ticket" tone="bg-accent-soft text-accent-ink"
@@ -54,7 +62,7 @@
 
         {{-- 2. KPI bulan ini (PRD 1.4) --}}
         <section aria-label="KPI bulan ini" class="mb-4 grid grid-cols-2 gap-3 md:mb-5 md:grid-cols-3 md:gap-4 xl:grid-cols-5">
-            <x-kpi-card label="SLA Compliance" :value="$kpi['sla_rate']" suffix="%" icon="shield-check" tone="bg-selesai-bg text-selesai-fg"
+            <x-kpi-card label="Ketepatan Waktu" :value="$kpi['sla_rate']" suffix="%" icon="shield-check" tone="bg-selesai-bg text-selesai-fg"
                         :note="$kpi['selesai'] ? $kpi['sla_met'].' dari '.$kpi['selesai'].' selesai · target ≥ 85%' : 'belum ada tiket selesai · target ≥ 85%'"
                         :status="$kpi['sla_rate'] === null ? null : ($kpi['sla_rate'] >= 85 ? 'good' : 'bad')" />
             <x-kpi-card label="Rata-rata CSAT" :value="$kpi['csat'] === null ? null : number_format($kpi['csat'], 1, ',', '.').' / 5'" icon="star" tone="bg-accent-soft text-accent-ink"
@@ -77,7 +85,7 @@
         <div class="grid gap-4 lg:grid-cols-[1.5fr_1fr]">
             <div class="min-w-0 space-y-4">
                 {{-- 3. Tiket Menganggur --}}
-                <x-ui.card title="Tiket Menganggur (Melewati SLA)" description="Masih Menunggu dan sudah melewati target SLA. Kirim Ping ke Staff terkait."
+                <x-ui.card title="Tiket Menganggur (Lewat Batas Waktu)" description="Masih Menunggu dan sudah melewati batas waktu penanganan. Kirim Ping ke Staff terkait."
                            class="p-0! md:p-0! [&>header]:px-4 [&>header]:pt-4 md:[&>header]:px-5 md:[&>header]:pt-5">
                     @if ($idleTotal > $idle->count())
                         <x-slot:action>
@@ -89,7 +97,7 @@
                     @if ($idle->isEmpty())
                         <div class="px-4 pb-4 md:px-5 md:pb-5">
                             <x-ui.empty-state icon="circle-check" title="Tidak ada tiket menganggur">
-                                Semua tiket yang menunggu masih dalam target SLA.
+                                Semua tiket yang menunggu masih dalam batas waktu target.
                             </x-ui.empty-state>
                         </div>
                     @else
@@ -112,7 +120,7 @@
                 </x-ui.card>
 
                 {{-- 4c. Performa staff --}}
-                <x-ui.card :title="'Performa Staff — '.$monthName" description="Dari tiket yang masuk bulan ini." class="p-0! md:p-0! [&>header]:px-4 [&>header]:pt-4 md:[&>header]:px-5 md:[&>header]:pt-5">
+                <x-ui.card :title="'Performa Staff: '.$monthName" description="Dari tiket yang masuk bulan ini." class="p-0! md:p-0! [&>header]:px-4 [&>header]:pt-4 md:[&>header]:px-5 md:[&>header]:pt-5">
                     @include('admin._staff-performance', ['rows' => $staffPerformance])
                 </x-ui.card>
             </div>

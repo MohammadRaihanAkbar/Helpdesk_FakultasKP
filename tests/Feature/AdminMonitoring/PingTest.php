@@ -67,11 +67,11 @@ class PingTest extends AdminTestCase
         $this->actingAs($this->admin)->postJson("/admin/tickets/{$ticket->id}/ping")
             ->assertStatus(422)
             ->assertJsonPath('error.code', 'NO_ACTIVE_STAFF')
-            ->assertJsonPath('error.message', 'Belum ada Staff untuk kelompok ini — tetapkan spesialisasi terlebih dahulu.');
+            ->assertJsonPath('error.message', 'Belum ada Staff untuk kelompok ini (tetapkan spesialisasi terlebih dahulu).');
 
         // Di Monitor Antrean tombolnya nonaktif dengan keterangan yang sama.
         $this->actingAs($this->admin)->get('/admin/queue')
-            ->assertSee('Belum ada Staff untuk kelompok ini — tetapkan spesialisasi terlebih dahulu.');
+            ->assertSee('Belum ada Staff untuk kelompok ini (tetapkan spesialisasi terlebih dahulu).');
         $this->assertDatabaseCount('ping_logs', 0);
     }
 

@@ -21,7 +21,7 @@
     ];
 @endphp
 
-<x-ui.card title="Performa SLA Fakultas" description="Rata-rata waktu penyelesaian tiket Selesai dibanding target SLA." {{ $attributes }}>
+<x-ui.card title="Ketepatan Waktu Fakultas" description="Rata-rata waktu penyelesaian tiket selesai dibanding target waktu penanganan." {{ $attributes }}>
     @if (collect($ranking)->whereNotNull('rank')->isEmpty())
         <x-ui.empty-state icon="chart" title="Belum ada tiket selesai">
             Peringkat muncul setelah ada tiket yang diselesaikan Staff.
@@ -31,23 +31,23 @@
             @foreach ($ranking as $row)
                 @php($tone = $tones[$row['tone']])
                 <li>
-                    <div class="flex items-center justify-between gap-2">
-                        <div class="flex items-center gap-2">
-                            <span class="w-5 shrink-0 text-center font-mono text-xs {{ $row['rank'] ? 'font-bold text-ink' : 'font-medium text-muted' }}">{{ $row['rank'] ?? '–' }}</span>
+                    <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+                        <span class="flex min-w-0 items-center gap-2">
+                            <span class="w-5 shrink-0 text-right font-mono text-xs text-muted">{{ $row['rank'] ?? '–' }}</span>
                             <span class="font-bold text-ink" title="{{ $row['name'] }}">{{ $row['code'] }}</span>
-                        </div>
-                        <x-ui.badge :tone="$tone['badge']" class="shrink-0">{{ $tone['label'] }}</x-ui.badge>
-                    </div>
-                    <div class="mt-1 ml-7 flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 text-xs text-muted">
-                        @if ($row['rank'])
-                            <span>rata-rata <span class="font-mono font-semibold text-ink">{{ Format::seconds($row['avg_resolution_seconds']) }}</span></span>
-                            <span><span class="font-mono font-semibold text-ink">{{ Format::percent($row['sla_rate']) }}</span> tepat SLA</span>
-                        @else
-                            <span>belum ada tiket selesai</span>
-                        @endif
+                            <x-ui.badge :tone="$tone['badge']">{{ $tone['label'] }}</x-ui.badge>
+                        </span>
+                        <span class="ml-7 text-xs text-muted sm:ml-auto sm:text-right">
+                            @if ($row['rank'])
+                                rata-rata <span class="font-mono font-semibold text-ink">{{ Format::seconds($row['avg_resolution_seconds']) }}</span>
+                                · <span class="font-mono font-semibold text-ink">{{ Format::percent($row['sla_rate']) }}</span> tepat waktu
+                            @else
+                                belum ada tiket selesai
+                            @endif
+                        </span>
                     </div>
                     <div class="mt-1.5 ml-7 h-2 overflow-hidden rounded-full bg-sunken" aria-hidden="true">
-                        <div class="h-full rounded-full transition-all duration-300 {{ $tone['bar'] }}" style="width: {{ $row['avg_ratio'] === null ? 0 : min(100, round($row['avg_ratio'] / 1.5 * 100)) }}%"></div>
+                        <div class="h-full rounded-full {{ $tone['bar'] }}" style="width: {{ $row['avg_ratio'] === null ? 0 : min(100, round($row['avg_ratio'] / 1.5 * 100)) }}%"></div>
                     </div>
                 </li>
             @endforeach

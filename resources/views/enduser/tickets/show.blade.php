@@ -32,9 +32,9 @@
                 <h1 class="mt-2 text-xl font-extrabold text-ink md:text-2xl">{{ $ticket->title }}</h1>
 
                 <dl class="mt-4 grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
-                    <div><dt class="text-muted">Fakultas tujuan</dt><dd class="font-semibold">{{ $ticket->faculty->code }} — {{ $ticket->faculty->name }}</dd></div>
+                    <div><dt class="text-muted">Fakultas tujuan</dt><dd class="font-semibold">{{ $ticket->faculty->code }} · {{ $ticket->faculty->name }}</dd></div>
                     <div><dt class="text-muted">Kategori</dt><dd class="font-semibold">{{ $ticket->category->pathLabel() }}</dd></div>
-                    <div><dt class="text-muted">Target SLA</dt><dd class="font-mono font-semibold">{{ $ticket->sla_target_hours }} jam</dd></div>
+                    <div><dt class="text-muted">Target waktu penanganan</dt><dd class="font-mono font-semibold">{{ $ticket->sla_target_hours }} jam</dd></div>
                     <div><dt class="text-muted">Dibuat</dt><dd class="font-semibold">{{ $ticket->created_at->translatedFormat('j M Y, H:i') }}</dd></div>
                     <div class="sm:col-span-2">
                         <dt class="text-muted">Ditangani oleh</dt>
@@ -137,7 +137,7 @@
                         <form method="POST" action="{{ route('tickets.comments.store', $ticket) }}" enctype="multipart/form-data" class="space-y-3"
                               x-data="{ files: [] }">
                             @csrf
-                            <x-ui.textarea name="body" label="Balas pesan" :maxlength="\App\Http\Requests\Tickets\StoreCommentRequest::BODY_MAX" rows="3"
+                            <x-ui.textarea name="body" label="Kirim pesan" :maxlength="\App\Http\Requests\Tickets\StoreCommentRequest::BODY_MAX" rows="3"
                                            placeholder="Ketik pesan…" required />
                             <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                 <div class="min-w-0">
@@ -171,7 +171,7 @@
 
             @if ($ticket->status === \App\Enums\TicketStatus::Menunggu)
                 <x-ui.alert type="warning" title="Menunggu diambil Staff">
-                    Tiket tidak punya batas kedaluwarsa. Target SLA {{ $ticket->sla_target_hours }} jam menjadi acuan staff fakultas.
+                    Tiket tidak punya batas kedaluwarsa. Target waktu penanganan {{ $ticket->sla_target_hours }} jam menjadi acuan staff fakultas.
                 </x-ui.alert>
             @endif
         </aside>

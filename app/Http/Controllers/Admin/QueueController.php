@@ -42,7 +42,7 @@ class QueueController extends AdminController
         'semua' => 'Semua status',
     ];
 
-    public const SLA_OPTIONS = ['overdue' => 'Melewati SLA', 'near' => 'Mendekati SLA'];
+    public const SLA_OPTIONS = ['overdue' => 'Melewati Batas Waktu', 'near' => 'Mendekati Batas Waktu'];
 
     public function index(Request $request, CategoryManager $categories, PingService $pings): View
     {

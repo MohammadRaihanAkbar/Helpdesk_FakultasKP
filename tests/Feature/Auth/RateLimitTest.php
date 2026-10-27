@@ -50,7 +50,7 @@ class RateLimitTest extends TestCase
         }
 
         $this->post('/register/alumni', $this->registrationData(1, $faculty->id))
-            ->assertRedirect('/login')
+            ->assertRedirect(route('register.alumni.done'))
             ->assertSessionHasNoErrors();
     }
 
@@ -59,7 +59,7 @@ class RateLimitTest extends TestCase
         $faculty = Faculty::factory()->create();
 
         for ($i = 1; $i <= 6; $i++) {
-            $this->post('/register/alumni', $this->registrationData($i, $faculty->id))->assertRedirect('/login');
+            $this->post('/register/alumni', $this->registrationData($i, $faculty->id))->assertRedirect(route('register.alumni.done'));
         }
 
         $this->post('/register/alumni', $this->registrationData(7, $faculty->id))

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Enums\TicketStatus;
 use App\Models\Ticket;
+use App\Models\User;
 use App\Services\Reports\TicketMetrics;
 use App\Services\StaffSpecialtyService;
 use App\Services\Tickets\PingService;
@@ -80,6 +81,7 @@ class DashboardController extends AdminController
             'groups' => $metrics->byGroup($monthRows, $facultyId),
             'staffPerformance' => $metrics->byStaff($monthRows, $facultyId),
             'coverage' => $specialties->coverage($facultyId),
+            'pendingAlumni' => User::pendingAlumniOf($facultyId)->count(), // [M6] kotak pengingat verifikasi alumni
         ]);
     }
 }

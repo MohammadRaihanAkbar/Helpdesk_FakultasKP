@@ -16,7 +16,7 @@
 
 <x-layouts.app :title="$title">
     <x-page-header :title="$title" :back="route('admin.services.index')"
-                   :description="$locked ? 'Kategori standar: hanya Target SLA, deskripsi, dan status Aktif yang bisa diubah.' : 'Kategori tambahan khas fakultas Anda.'" />
+                   :description="$locked ? 'Kategori standar: hanya target batas waktu, deskripsi, dan status Aktif yang bisa diubah.' : 'Kategori tambahan khas fakultas Anda.'" />
 
     <x-ui.card class="max-w-3xl">
         <form method="POST" action="{{ $isEdit ? route('admin.services.update', $category) : route('admin.services.store') }}"
@@ -34,7 +34,7 @@
 
             @if ($locked)
                 <x-ui.alert type="info" title="Kategori standar terkunci">
-                    Nama, kelompok induk, dan audiens kategori standar sama untuk semua fakultas agar laporan dan peringkat SLA tetap sebanding.
+                    Nama, kelompok induk, dan audiens kategori standar sama untuk semua fakultas agar laporan dan perbandingan waktu penyelesaian tetap sebanding.
                 </x-ui.alert>
 
                 <dl class="grid gap-4 rounded-control border border-line bg-sunken/50 p-4 text-sm sm:grid-cols-3">
@@ -44,7 +44,7 @@
                     </div>
                     <div>
                         <dt class="text-muted">Kelompok induk</dt>
-                        <dd class="mt-0.5 font-semibold">{{ $category->parent?->name ?? '— (Kelompok Layanan)' }}</dd>
+                        <dd class="mt-0.5 font-semibold">{{ $category->parent?->name ?? '(Kelompok Layanan)' }}</dd>
                     </div>
                     <div>
                         <dt class="text-muted">Audiens</dt>
@@ -62,7 +62,7 @@
                                     'border-line' => ! $errors->has('parent_id'), 'border-ditolak-fg' => $errors->has('parent_id')])
                             aria-describedby="parent_id-hint" @if ($errors->has('parent_id')) aria-invalid="true" @endif
                             @disabled($isEdit && $category->children->isNotEmpty())>
-                        <option value="">— Tidak ada: jadikan Kelompok Layanan baru —</option>
+                        <option value="">(Tidak ada: jadikan Kelompok Layanan baru)</option>
                         @foreach ($parents as $parent)
                             <option value="{{ $parent->id }}">{{ $parent->name }} ({{ $parent->is_standard ? 'Standar' : 'Tambahan' }})</option>
                         @endforeach
@@ -103,7 +103,7 @@
             @endif
 
             <div class="max-w-xs">
-                <label for="sla_hours" class="mb-1.5 block text-sm font-bold text-ink">Target SLA (jam) *</label>
+                <label for="sla_hours" class="mb-1.5 block text-sm font-bold text-ink">Target Batas Waktu (jam) *</label>
                 <div class="relative">
                     <input id="sla_hours" name="sla_hours" type="number" min="1" max="{{ \App\Http\Requests\Admin\CategoryRequest::SLA_MAX }}" inputmode="numeric"
                            x-model="sla" aria-describedby="sla_hours-hint" @if ($errors->has('sla_hours')) aria-invalid="true" @endif
@@ -113,7 +113,7 @@
                 </div>
                 <p id="sla_hours-hint" class="mt-1.5 text-sm text-muted">
                     Contoh 24, 48, 72. Berlaku untuk tiket baru.
-                    <span x-show="parent" x-cloak>Default diambil dari SLA kelompok induk.</span>
+                    <span x-show="parent" x-cloak>Default diambil dari target waktu kelompok induk.</span>
                     @if ($isEdit && $category->isGroup() && $category->children->isNotEmpty())
                         Pada kelompok yang punya Jenis Masalah, nilai ini menjadi default untuk Jenis Masalah baru.
                     @endif
@@ -130,7 +130,7 @@
                 <input type="hidden" name="is_active" value="0">
                 <label class="inline-flex min-h-12 cursor-pointer items-center gap-3">
                     <input type="checkbox" name="is_active" value="1" class="size-5 accent-primary" @checked(old('is_active', $category->is_active ?? true))>
-                    <span><span class="font-bold">Aktif</span> <span class="text-sm text-muted">— tampil di form buat tiket</span></span>
+                    <span><span class="font-bold">Aktif</span> <span class="text-sm text-muted">(tampil di form buat tiket)</span></span>
                 </label>
             </div>
 

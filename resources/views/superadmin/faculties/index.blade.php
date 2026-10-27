@@ -34,7 +34,7 @@
                         @foreach ($faculties as $faculty)
                             <tr @class(['align-top', 'opacity-70' => ! $faculty->is_active])>
                                 <td class="px-5 py-3.5">
-                                    <p class="font-bold text-ink"><span class="font-mono">{{ $faculty->code }}</span> — {{ $faculty->name }}</p>
+                                    <p class="font-bold text-ink"><span class="font-mono">{{ $faculty->code }}</span> · {{ $faculty->name }}</p>
                                     <p class="text-xs text-muted">slug: {{ $faculty->slug }}@if ($faculty->description) · {{ \Illuminate\Support\Str::limit($faculty->description, 80) }}@endif</p>
                                 </td>
                                 <td class="px-3 py-3.5">

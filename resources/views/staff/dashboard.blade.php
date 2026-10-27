@@ -78,10 +78,10 @@
 
     <div class="grid gap-4 lg:grid-cols-[1.5fr_1fr]">
         <div class="min-w-0 space-y-4">
-            <x-ui.card title="Tiket Mendekati / Melewati SLA" description="Dari antrean dan tiket yang sedang Anda proses." class="p-0! md:p-0! [&>header]:px-4 [&>header]:pt-4 md:[&>header]:px-5 md:[&>header]:pt-5">
+            <x-ui.card title="Tiket Mendekati / Melewati Batas Waktu" description="Dari antrean dan tiket yang sedang Anda proses." class="p-0! md:p-0! [&>header]:px-4 [&>header]:pt-4 md:[&>header]:px-5 md:[&>header]:pt-5">
                 @if ($slaAlerts->isEmpty())
                     <div class="px-4 pb-4 md:px-5 md:pb-5">
-                        <x-ui.empty-state icon="circle-check" title="Semua tiket masih dalam target SLA">
+                        <x-ui.empty-state icon="circle-check" title="Semua tiket masih dalam target batas waktu">
                             Tiket yang sisa waktunya kurang dari 25% target akan ditandai kuning, yang sudah lewat ditandai merah.
                         </x-ui.empty-state>
                     </div>

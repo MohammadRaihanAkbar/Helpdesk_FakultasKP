@@ -3,8 +3,10 @@
 use App\Http\Controllers\Admin;
 use App\Http\Controllers\Auth\AlumniRegistrationController;
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Dekan;
 use App\Http\Controllers\EndUser;
 use App\Http\Controllers\FileController;
+use App\Http\Controllers\LandingController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Staff;
 use App\Http\Controllers\SuperAdmin;
@@ -25,8 +27,9 @@ use Illuminate\Support\Facades\Route;
 | Middleware EnsureUserIsActive dipasang otomatis di semua route web (bootstrap/app.php).
 */
 
-// Halaman utama: tamu -> login, yang sudah login -> dashboard sesuai peran (lewat middleware guest).
-Route::redirect('/', '/login');
+// [M6] Halaman depan publik: profil helpdesk + tren tiket. Tamu -> tombol "Masuk", sudah login -> "Buka Dashboard".
+// (Sampai M5 halaman ini langsung dialihkan ke /login.)
+Route::get('/', LandingController::class)->name('home');
 
 // ---------- Tamu: login & registrasi alumni ----------
 Route::middleware('guest')->group(function () {
@@ -40,7 +43,13 @@ Route::middleware('guest')->group(function () {
         Route::post('/register/alumni', [AlumniRegistrationController::class, 'store'])
             ->middleware('throttle:alumni-registration') // 6x/menit per IP
             ->name('register.alumni.store');
+        // [M6] Gambar captcha (SVG buatan sendiri). Setiap permintaan = soal baru; 30x/menit per IP.
+        Route::get('/register/alumni/captcha', [AlumniRegistrationController::class, 'captcha'])
+            ->middleware('throttle:captcha')
+            ->name('register.alumni.captcha');
     });
+    // [M6] Setelah mendaftar: "pendaftaran diterima, tunggu verifikasi Admin Fakultas".
+    Route::get('/register/alumni/terkirim', [AlumniRegistrationController::class, 'done'])->name('register.alumni.done');
 });
 
 Route::post('/logout', [LoginController::class, 'destroy'])->middleware('auth')->name('logout');
@@ -99,6 +108,10 @@ Route::middleware(['auth', 'role:staff'])->prefix('staff')->name('staff.')->grou
     // Riwayat Tiket staff (US-09). Detail memakai halaman yang sama dengan Tiket Saya.
     Route::get('/history', [Staff\HistoryController::class, 'index'])->name('history');
     Route::get('/history/{ticket}', [Staff\TicketController::class, 'show'])->whereNumber('ticket')->name('history.show');
+
+    // [M6] Laporan hasil kerja sendiri: periode 7/14/30/90 hari atau rentang tanggal + unduh CSV/Excel.
+    Route::get('/laporan', [Staff\ReportController::class, 'index'])->name('laporan');
+    Route::get('/laporan/export', [Staff\ReportController::class, 'export'])->name('laporan.export');
 });
 
 // ---------- Admin Fakultas ----------
@@ -134,10 +147,24 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::patch('/staff/{staff}/status', [Admin\StaffController::class, 'status'])->name('staff.status');
     Route::get('/staff/{staff}/specialties', [Admin\StaffSpecialtyController::class, 'edit'])->name('staff.specialties.edit');
     Route::put('/staff/{staff}/specialties', [Admin\StaffSpecialtyController::class, 'update'])->name('staff.specialties.update');
+
+    // [M6] Verifikasi pendaftaran alumni hidden link dari fakultas admin (fakultas asal alumni).
+    Route::get('/verifikasi-alumni', [Admin\AlumniVerificationController::class, 'index'])->name('alumni.index');
+    Route::patch('/verifikasi-alumni/{alumni}/setujui', [Admin\AlumniVerificationController::class, 'approve'])->whereNumber('alumni')->name('alumni.approve');
+    Route::patch('/verifikasi-alumni/{alumni}/tolak', [Admin\AlumniVerificationController::class, 'reject'])->whereNumber('alumni')->name('alumni.reject');
+});
+
+// ---------- [M6] Dekan ----------
+// Pimpinan SATU fakultas (users.faculty_id): hanya dashboard statistik + laporan & ekspor. Tidak ada aksi tiket,
+// Ping, detail tiket, kelola staff/kategori. Route /admin/* dan /staff/* tetap 403 untuk Dekan (role middleware).
+Route::middleware(['auth', 'role:dekan'])->prefix('dekan')->name('dekan.')->group(function () {
+    Route::get('/dashboard', Dekan\DashboardController::class)->name('dashboard');
+    Route::get('/laporan', [Dekan\ReportController::class, 'index'])->name('laporan');
+    Route::get('/laporan/export', [Dekan\ReportController::class, 'export'])->name('laporan.export');
 });
 
 // ---------- Super Admin ----------
-// Hanya master data fakultas & penunjukan Admin Fakultas (PRD 2.4). Tidak menyentuh tiket, staff, atau kategori.
+// Hanya master data fakultas & penunjukan Admin Fakultas / Dekan (PRD 2.4, M6). Tidak menyentuh tiket, staff, atau kategori.
 Route::middleware(['auth', 'role:super_admin'])->prefix('super-admin')->name('superadmin.')->group(function () {
     Route::get('/dashboard', SuperAdmin\DashboardController::class)->name('dashboard');
 
@@ -152,6 +179,9 @@ Route::middleware(['auth', 'role:super_admin'])->prefix('super-admin')->name('su
     });
 
     // Daftar Pengguna (read-only) + tunjuk/cabut Admin Fakultas (US-18, F-SPA-02, F-SPA-04).
+    // [M6] + tunjuk/cabut Dekan, dan buat akun lokal Dekan (dekan yang belum pernah login SSO).
     Route::get('/users', [SuperAdmin\UserController::class, 'index'])->name('users.index');
     Route::patch('/users/{user}/role', [SuperAdmin\UserController::class, 'role'])->whereNumber('user')->name('users.role');
+    Route::get('/users/dekan/create', [SuperAdmin\UserController::class, 'createDekan'])->name('users.dekan.create');
+    Route::post('/users/dekan', [SuperAdmin\UserController::class, 'storeDekan'])->name('users.dekan.store');
 });

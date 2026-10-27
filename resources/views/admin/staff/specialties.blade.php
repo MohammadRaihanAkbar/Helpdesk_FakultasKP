@@ -46,7 +46,7 @@
                                         <p id="sensitif-{{ $group->id }}" x-show="checked" x-cloak role="alert"
                                            class="mt-2 flex items-start gap-2 rounded-control bg-ditolak-bg px-4 py-3 text-sm text-ditolak-fg">
                                             <x-icon name="triangle-alert" class="mt-0.5 size-4" />
-                                            <span>Kategori sensitif — petakan hanya ke staf yang ditunjuk (mis. Dekanat/Penjaminan Mutu). Identitas pelapor hanya terlihat oleh staff penangan dan Admin Fakultas.</span>
+                                            <span>Kategori sensitif: petakan hanya ke staf yang ditunjuk (mis. Dekanat/Penjaminan Mutu). Identitas pelapor hanya terlihat oleh staff penangan dan Admin Fakultas.</span>
                                         </p>
                                     @endif
                                 </div>

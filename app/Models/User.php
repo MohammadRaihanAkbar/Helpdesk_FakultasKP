@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Enums\AccountStatus;
 use App\Enums\NotificationType;
 use App\Enums\Role;
 use App\Enums\UserType;
@@ -20,13 +21,16 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\RoutesNotifications;
 
 /**
- * Tabel 2: users — satu tabel untuk 4 peran (end_user, staff, admin, super_admin).
+ * Tabel 2: users — satu tabel untuk semua peran (end_user, staff, admin, super_admin, dan sejak M6: dekan).
  *
  * Dua kolom fakultas dengan arti berbeda (lihat migration add_faculty_id_to_users_table):
  *   - origin_faculty_id -> fakultas ASAL pelapor      -> relasi originFaculty()
  *   - faculty_id        -> fakultas TEMPAT BERTUGAS   -> relasi faculty()
  *
  * Identitas kampus: nim (mahasiswa/alumni), nip (dosen, sejak M5), nidn (dosen, hanya bila SSO mengirimnya).
+ *
+ * [M6] account_status (pending/approved/rejected) + verified_at/verified_by/rejection_reason: verifikasi alumni
+ * hidden link oleh Admin Fakultas. Sengaja TIDAK ada di #[Fillable]: hanya AlumniVerificationService yang mengubahnya.
  */
 #[Fillable([
     'name', 'email', 'password',
@@ -65,6 +69,8 @@ class User extends Authenticatable
             'user_type' => UserType::class,  // boleh NULL (Staff/Admin/Super Admin)
             'graduation_year' => 'integer',
             'is_active' => 'boolean',
+            'account_status' => AccountStatus::class, // [M6]
+            'verified_at' => 'datetime',
         ];
     }
 
@@ -92,10 +98,22 @@ class User extends Authenticatable
         return $this->role === Role::SuperAdmin;
     }
 
+    /** [M6] Dekan: pemantau dashboard & laporan satu fakultas (faculty_id), tanpa aksi tiket. */
+    public function isDekan(): bool
+    {
+        return $this->role === Role::Dekan;
+    }
+
     /** Apakah user punya salah satu peran yang diberikan. */
     public function hasRole(Role ...$roles): bool
     {
         return in_array($this->role, $roles, true);
+    }
+
+    /** [M6] Akun sudah disetujui (boleh login). Akun lama & akun SSO selalu approved. */
+    public function isApproved(): bool
+    {
+        return ($this->account_status ?? AccountStatus::Approved) === AccountStatus::Approved;
     }
 
     /**
@@ -127,6 +145,45 @@ class User extends Authenticatable
     }
 
     // ------------------------------------------------------------------
+    // Email notifikasi (M6)
+    // ------------------------------------------------------------------
+
+    /**
+     * Email pengganti dari SSO ({nim|nip}@SSO_EMAIL_FALLBACK_DOMAIN, lihat SsoUserSynchronizer)?
+     * Alamat itu hanya pengisi kolom wajib, bukan kotak surat sungguhan.
+     */
+    public static function isPlaceholderEmail(?string $email): bool
+    {
+        $domain = mb_strtolower((string) config('sso.email_fallback_domain'));
+
+        return $email !== null && $domain !== '' && str_ends_with(mb_strtolower($email), '@'.$domain);
+    }
+
+    /**
+     * SATU tempat aturan "boleh dikirimi email?" (M6). Dipakai semua class di app/Notifications.
+     *
+     *   - email kosong / tidak valid             -> tidak (hanya notifikasi in-app)
+     *   - email pengganti SSO (domain fallback)  -> tidak (alamatnya tidak ada)
+     *   - email notifikasi dimatikan di config   -> tidak (MAIL_NOTIFICATIONS=false)
+     */
+    public function canReceiveEmail(): bool
+    {
+        return config('helpdesk.email_notifications')
+            && filter_var($this->email, FILTER_VALIDATE_EMAIL) !== false
+            && ! self::isPlaceholderEmail($this->email);
+    }
+
+    /**
+     * Alamat tujuan channel "mail" Laravel. null = tidak dikirim (MailChannel melewatinya).
+     *
+     * @return array<string, string>|null
+     */
+    public function routeNotificationForMail(): ?array
+    {
+        return $this->canReceiveEmail() ? [$this->email => $this->name] : null;
+    }
+
+    // ------------------------------------------------------------------
     // Scope query
     // ------------------------------------------------------------------
 
@@ -139,11 +196,28 @@ class User extends Authenticatable
             ->where('graduation_year', '<=', AlumniRegistrationRequest::LAST_GRADUATION_YEAR);
     }
 
+    /**
+     * [M6] Pendaftar alumni yang MENUNGGU verifikasi Admin Fakultas $facultyId (fakultas asal), terlama di atas.
+     */
+    #[Scope]
+    protected function pendingAlumniOf(Builder $query, int $facultyId): void
+    {
+        $query->where('account_status', AccountStatus::Pending)
+            ->where('user_type', UserType::Alumni)
+            ->where('origin_faculty_id', $facultyId);
+    }
+
     // ------------------------------------------------------------------
     // Relasi
     // ------------------------------------------------------------------
 
-    /** Fakultas tempat bertugas (Staff & Admin Fakultas). */
+    /** [M6] Admin Fakultas yang menyetujui / menolak pendaftaran akun ini. */
+    public function verifier(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'verified_by');
+    }
+
+    /** Fakultas tempat bertugas (Staff, Admin Fakultas, dan Dekan). */
     public function faculty(): BelongsTo
     {
         return $this->belongsTo(Faculty::class);

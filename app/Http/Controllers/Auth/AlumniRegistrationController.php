@@ -2,14 +2,14 @@
 
 namespace App\Http\Controllers\Auth;
 
-use App\Enums\Role;
-use App\Enums\UserType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\AlumniRegistrationRequest;
 use App\Models\Faculty;
-use App\Models\User;
+use App\Services\Auth\AlumniVerificationService;
+use App\Services\Auth\Captcha;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\View\View;
 
 /**
@@ -17,15 +17,14 @@ use Illuminate\View\View;
  *
  * Halaman ini tidak ditautkan dari halaman publik mana pun. Jika ALUMNI_REGISTRATION_KEY diisi,
  * URL wajib memakai ?key=... (dijaga middleware EnsureAlumniRegistrationKey).
+ *
+ * [M6]
+ *   - captcha buatan sendiri (gambar SVG dari route register.alumni.captcha, lihat App\Services\Auth\Captcha);
+ *   - akun baru MENUNGGU VERIFIKASI Admin Fakultas asal, belum bisa login (AlumniVerificationService);
+ *   - setelah daftar -> halaman "pendaftaran diterima" (register.alumni.done), bukan langsung ke login.
  */
 class AlumniRegistrationController extends Controller
 {
-    /**
-     * Pesan setelah registrasi. PRD 9.3 hanya menyebut email; sejak perbaikan bug M1 alumni juga
-     * bisa login memakai NIM lama (lihat LoginService::authenticateHiddenLinkAlumni()).
-     */
-    public const SUCCESS_MESSAGE = 'Registrasi alumni berhasil. Silakan login dengan NIM lama atau email pribadi Anda, beserta password yang baru dibuat.';
-
     /** GET /register/alumni */
     public function create(Request $request): View
     {
@@ -35,25 +34,31 @@ class AlumniRegistrationController extends Controller
         ]);
     }
 
+    /**
+     * GET /register/alumni/captcha — gambar soal captcha (SVG). Setiap permintaan membuat soal BARU
+     * (tombol "Ganti soal" cukup memuat ulang gambar ini). no-store: browser tidak boleh menyimpan gambar lama.
+     */
+    public function captcha(Captcha $captcha): Response
+    {
+        return response($captcha->generate('alumni'), 200, [
+            'Content-Type' => 'image/svg+xml; charset=UTF-8',
+            'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
+        ]);
+    }
+
     /** POST /register/alumni */
-    public function store(AlumniRegistrationRequest $request): RedirectResponse
+    public function store(AlumniRegistrationRequest $request, AlumniVerificationService $verification): RedirectResponse
     {
         // Hanya field yang sudah divalidasi yang dipakai (validated()), bukan $request->all().
-        $data = $request->validated();
+        $user = $verification->register($request->safe()->except(['captcha', 'password_confirmation']));
 
-        User::create([
-            'name' => $data['name'],
-            'email' => $data['email'],
-            'nim' => $data['nim'],
-            'graduation_year' => $data['graduation_year'],
-            'origin_faculty_id' => $data['origin_faculty_id'],
-            'password' => $data['password'], // di-hash otomatis (cast 'hashed')
-            'role' => Role::EndUser,
-            'user_type' => UserType::Alumni,
-            'is_active' => true,
-        ]);
+        return redirect()->route('register.alumni.done')
+            ->with('registered', ['name' => $user->name, 'email' => $user->email, 'faculty' => $user->originFaculty?->name]);
+    }
 
-        return redirect()->route('login')
-            ->with('status', self::SUCCESS_MESSAGE);
+    /** GET /register/alumni/terkirim — "pendaftaran diterima, tunggu verifikasi". */
+    public function done(Request $request): View
+    {
+        return view('auth.register-alumni-done', ['registered' => $request->session()->get('registered')]);
     }
 }
